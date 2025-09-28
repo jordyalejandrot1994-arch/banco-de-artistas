@@ -280,7 +280,7 @@
         </select>
         <input name="precio_calculado" type="text" readonly placeholder="Precio final (con servicio)">
       </div>
-      <div class="note">Sube comprobante de transferencia (simulado):</div>
+      <div class="note">Sube comprobante de transferencia (opcional aquí; oficial en Mis reservas):</div>
       <input name="comprobante" type="file" accept="image/*,application/pdf">
       <div class="note">Cuenta para transferencias: <strong>Banco de Loja</strong> 2901691001, Ahorros, <strong>Jordy Torres</strong>, C.I. 1105200057</div>
       <menu>
@@ -381,7 +381,7 @@
   (function adminReveal(){ let taps=0,timer=null; qs('#logo').addEventListener('click',()=>{taps++; if(timer) clearTimeout(timer); timer=setTimeout(()=>{taps=0},600); if(taps>=3){taps=0; abrirAdminLogin();}});
     document.addEventListener('keydown',(e)=>{ if(e.ctrlKey&&e.altKey&&(e.key.toLowerCase()==='a')) abrirAdminLogin(); }); })();
   function abrirAdminLogin(){ qs('#dlgAdmin').showModal(); }
-  qs('#formAdmin').addEventListener('submit',(e)=>{ const pass=new FormData(e.target).get('pass'); if(pass==="admin2025"){ qs('#dlgAdmin').close(); qs('#adminView').classList.add('active'); renderAdmin(); } else { e.preventDefault(); alert('Contraseña inválida'); }});
+  qs('#formAdmin').addEventListener('submit',(e)=>{ const pass=new FormData(e.target).get('pass'); if(pass===CONFIG.ADMIN_PASSWORD){ qs('#dlgAdmin').close(); qs('#adminView').classList.add('active'); renderAdmin(); } else { e.preventDefault(); alert('Contraseña inválida'); }});
 
   // ======================= BOOTSTRAP =======================
   async function bootstrap(){
@@ -463,6 +463,10 @@
       ref,
       estado: "por confirmar artista",
       fecha_creacion: new Date().toISOString(),
+      // ---- NUEVO: guardar fecha/hora del evento
+      fecha: fd.get('fecha'),
+      hora: fd.get('hora'),
+      // ---- Datos usuario
       usuario_nombres: fd.get('nombres'),
       usuario_cedula: fd.get('cedula'),
       usuario_celular: fd.get('celular'),
@@ -471,15 +475,36 @@
       usuario_barrio: fd.get('barrio'),
       usuario_calles: fd.get('calles'),
       usuario_referencias: fd.get('referencias'),
+      // ---- Datos artista
       artista_id: artistaActual.id,
       artista_nombre: artistaActual.nombre_artistico,
       artista_correo: artistaActual.correo,
+      // ---- Precios
       minutos,
       precio_user: prices.precioUser,
       precio_neto_artista: prices.precioNetoArtista
     };
     try{
       await API.create('contratos', contrato);
+
+      // ---- NUEVO: correo al ARTISTA con detalles del contrato
+      sendEmail({
+        to:[artistaActual.correo],
+        subject:`Nuevo contrato recibido: ${ref}`,
+        html: `
+          <h2>Nuevo contrato por revisar</h2>
+          <p><strong>Artista:</strong> ${artistaActual.nombre_artistico}</p>
+          <p><strong>Ref:</strong> ${ref}</p>
+          <p><strong>Duración:</strong> ${minutos} minutos</p>
+          <p><strong>Precio neto para ti:</strong> $${prices.precioNetoArtista}</p>
+          <hr>
+          <p><strong>Evento:</strong> ${fd.get('fecha')} ${fd.get('hora')||''}</p>
+          <p><strong>Ubicación:</strong> ${fd.get('ciudad')} • ${fd.get('barrio')} • ${fd.get('calles')} • ${fd.get('referencias')}</p>
+          <p><strong>Cliente:</strong> ${fd.get('nombres')} • ${fd.get('correo')} • ${fd.get('celular')}</p>
+          <p style="color:#555">Ingresa a "Ingresar como artista" para Aceptar o Rechazar.</p>
+        `
+      });
+
       alert("Contrato generado. Nº "+ref+" — Revisa su estado en MIS RESERVAS.");
       dlgContratar.close();
     }catch(err){ console.error(err); alert("No se pudo crear el contrato en SheetDB."); }
@@ -492,7 +517,8 @@
     const pin = (Math.floor(Math.random()*900000)+100000).toString();
     const artist = {
       id: uid('A'),
-      aprobado:false, rating:0, votos:0,
+      aprobado:true,              // ← auto-aprobado
+      rating:0, votos:0,
       foto:fd.get('foto'), video:fd.get('video'),
       nombre_artistico:fd.get('nombre_artistico'), nombre_real:fd.get('nombre_real'),
       cedula:fd.get('cedula'), ciudad:fd.get('ciudad'),
@@ -528,7 +554,6 @@
       if(!res || !res.length){ e.preventDefault(); alert("Credenciales inválidas"); return; }
       const a = normalizeRow(res[0]); state.sessionArtist = a.id;
       dlgLoginArtista.close(); await reloadContracts(); renderPanelArtista();
-      if(!a.aprobado){ alert("Tu cuenta aún no ha sido aprobada por el administrador."); }
     }catch(err){ console.error(err); alert("Error al iniciar sesión."); }
   });
 
@@ -556,8 +581,9 @@
       div.innerHTML = `
         <div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
         <div class="muted">Show: ${c.minutos} min • Tu neto: $${c.precio_neto_artista}</div>
-        <div class="note">Usuario: ${c.usuario_nombres} ${contactoVisible? '• '+c.usuario_correo+' • '+(state.artists.find(a=>a.id===c.artista_id)?.celular||'')
-                                : '• contacto oculto hasta confirmación'}</div>
+        <div class="note">Evento: ${(c.fecha||'') } ${ (c.hora||'') }</div>
+        <div class="note">Lugar: ${c.usuario_ciudad||''} • ${c.usuario_barrio||''} • ${c.usuario_calles||''} • ${c.usuario_referencias||''}</div>
+        <div class="note">Cliente: ${c.usuario_nombres} ${c.usuario_correo?('• '+c.usuario_correo):''} ${c.usuario_celular?('• '+c.usuario_celular):''}</div>
         <div class="peek" style="margin-top:8px">
           <button class="btn primary" data-accion="aceptar">Aceptar</button>
           <button class="btn ghost" data-accion="rechazar">Rechazar</button>
@@ -570,7 +596,7 @@
           try{
             if(act==='aceptar'){
               if(c.estado==='por confirmar artista'){
-                await BA_PATCH.onArtistAccept(c, 24); // ← NUEVO flujo
+                await BA_PATCH.onArtistAccept(c, 24); // ← cambia a pendiente de pago + email al usuario
                 await reloadContracts(); renderPanelArtista(); renderAdmin();
               } else {
                 alert('Este contrato no está en estado "por confirmar artista".');
@@ -581,7 +607,7 @@
               const hookA = document.getElementById('hookMensajesArtista');
               if (hookA){
                 hookA.innerHTML = '';
-                await BA_PATCH.mountInContractDetail(hookA, c, 'artista');
+                await renderChat(hookA, c, 'artista'); // artista solo envía si CONFIRMADO
                 hookA.scrollIntoView({behavior:'smooth'});
               } else {
                 alert("No se encontró el área de mensajes.");
@@ -619,17 +645,56 @@
         <div class="note">Fecha: ${new Date(c.fecha_creacion).toLocaleDateString()}</div>
         <div class="note">${visible? 'Contacto de artista: '+c.artista_correo+' • '+(state.artists.find(a=>a.id===c.artista_id)?.celular||'')
                                 : 'El contacto del artista se liberará una vez confirmado.'}</div>
-        <div class="peek" style="margin-top:8px"><button class="btn ghost" data-accion="mensaje">Mensaje</button></div>
+        <div class="peek" style="margin-top:8px">
+          ${ (c.estado==='pendiente de pago' || c.estado==='por validar pago') ? '<button class="btn primary" data-accion="subir">Subir comprobante</button>' : '' }
+          <button class="btn ghost" data-accion="mensaje">Mensaje</button>
+        </div>
       `;
-      div.querySelector('[data-accion="mensaje"]').addEventListener('click', async ()=>{
-        const hookU = document.getElementById('hookMensajesUsuario');
-        if (hookU){
-          hookU.innerHTML = '';
-          await BA_PATCH.mountInContractDetail(hookU, c, 'usuario');
-          hookU.scrollIntoView({behavior:'smooth'});
-        } else {
-          alert("No se encontró el área de mensajes.");
-        }
+      div.querySelectorAll('button[data-accion]').forEach(b=>{
+        b.addEventListener('click', async ()=>{
+          const act = b.getAttribute('data-accion');
+          try{
+            if(act==='subir'){
+              const inp = document.createElement('input');
+              inp.type = 'file';
+              inp.accept = 'image/*,application/pdf';
+              inp.onchange = async () => {
+                const file = inp.files && inp.files[0];
+                if(!file) return;
+                try{
+                  const up = new FormData();
+                  up.append('file', file);
+                  up.append('kind', 'payment-proof');
+                  up.append('ref', c.ref);
+                  const rr = await fetch('/.netlify/functions/upload-proof', { method:'POST', body: up });
+                  const jj = await rr.json().catch(()=>({}));
+                  if(!jj || !jj.ok || !jj.url){ alert('No se pudo subir el comprobante.'); return; }
+                  await API.updateById('contratos', c.id, { comprobante_url: jj.url, estado: 'pago en revisión' });
+                  // Notifica al artista que hay pago en revisión
+                  sendEmail({
+                    to:[c.artista_correo],
+                    subject:`Comprobante recibido - ${c.ref}`,
+                    html:`<p>El usuario subió un comprobante para el contrato <strong>${c.ref</strong>}.</p>
+                          <p>Estado: <strong>pago en revisión</strong>.</p>
+                          <p>Puedes ver el comprobante en el panel de administración.</p>`
+                  });
+                  alert('Comprobante subido. Estado: pago en revisión.');
+                  renderAdmin && renderAdmin();
+                }catch(e){ console.error(e); alert('Error subiendo comprobante.'); }
+              };
+              inp.click();
+            } else if(act==='mensaje'){
+              const hookU = document.getElementById('hookMensajesUsuario');
+              if (hookU){
+                hookU.innerHTML = '';
+                await renderChat(hookU, c, 'usuario'); // usuario puede escribir SIEMPRE
+                hookU.scrollIntoView({behavior:'smooth'});
+              } else {
+                alert("No se encontró el área de mensajes.");
+              }
+            }
+          }catch(err){ console.error(err); alert("Error en la acción."); }
+        });
       });
       box.appendChild(div);
     });
@@ -686,7 +751,7 @@
           <button class="btn ghost" data-accion="mensaje">Mensaje</button>
         </div>
       `;
-      // ← añade el bloque de mensajes y comprobante en la tarjeta de admin
+      // Añade link de comprobante y chat admin (BA_PATCH lo gestiona)
       BA_PATCH.augmentAdminCard(div, c);
 
       div.querySelectorAll('button[data-accion]').forEach(b=>{
@@ -697,6 +762,7 @@
             else if(act==='confirmar') c.estado='confirmado';
             else if(act==='rechazar') c.estado='rechazado';
             if(act==='mensaje'){
+              // Si prefieres chat UI en lugar de prompt, podemos llamar renderChat(div, c, 'admin')
               const t = prompt("Mensaje interno del admin (visible para las tres partes)"); if(!t) return;
               await API.create('mensajes', {contrato_ref:c.ref, de:'admin', texto:t, ts:new Date().toISOString()});
               alert("Mensaje enviado."); return;
@@ -721,15 +787,85 @@
     });
   }
 
+  // ======================= CHAT UNIFICADO =======================
+  async function renderChat(container, contrato, role){
+    container.innerHTML = `
+      <div class="card">
+        <div class="row"><strong>Mensajes</strong><span class="badge">${contrato.ref}</span></div>
+        <div id="chatList" class="note" style="max-height:220px;overflow:auto;margin-top:8px">Cargando…</div>
+        <div id="chatForm" style="margin-top:8px">
+          <textarea id="chatText" rows="2" placeholder="Escribe un mensaje…"></textarea>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <button id="chatSend" class="btn primary">Enviar</button>
+            <span id="chatHint" class="note"></span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const listEl = container.querySelector('#chatList');
+    const sendBtn = container.querySelector('#chatSend');
+    const textEl = container.querySelector('#chatText');
+    const hintEl = container.querySelector('#chatHint');
+
+    // Permisos: admin siempre; usuario siempre; artista solo si confirmado
+    const canSend = (role==='admin') || (role==='usuario') || (role==='artista' && contrato.estado==='confirmado');
+    if(!canSend){
+      sendBtn.disabled = true;
+      textEl.disabled = true;
+      hintEl.textContent = 'El artista podrá escribir cuando el contrato esté confirmado.';
+    } else {
+      hintEl.textContent = '';
+    }
+
+    async function load(){
+      try{
+        const msgs = await API.search('mensajes', { contrato_ref: contrato.ref });
+        msgs.sort((a,b)=> (a.ts||'').localeCompare(b.ts||''));
+        if(!msgs.length){ listEl.innerHTML = '<div class="note">Sin mensajes aún.</div>'; return; }
+        listEl.innerHTML = msgs.map(m=>`
+          <div style="margin:6px 0">
+            <strong>${(m.de||'').toUpperCase()}</strong>
+            <span class="muted" style="font-size:.8rem">${m.ts? new Date(m.ts).toLocaleString(): ''}</span>
+            <div>${(m.texto||'').replace(/</g,'&lt;')}</div>
+          </div>
+        `).join('');
+        listEl.scrollTop = listEl.scrollHeight;
+      }catch(e){
+        listEl.innerHTML = '<div class="danger">No se pudieron cargar mensajes.</div>';
+      }
+    }
+
+    sendBtn.addEventListener('click', async ()=>{
+      const t = (textEl.value||'').trim();
+      if(!t) return;
+      if(!canSend){ return; }
+      try{
+        await API.create('mensajes', {
+          id: uid('M'),
+          contrato_ref: contrato.ref,
+          de: role,
+          texto: t,
+          ts: new Date().toISOString()
+        });
+        textEl.value = '';
+        await load();
+      }catch(e){ alert('No se pudo enviar el mensaje.'); }
+    });
+
+    await load();
+  }
+
   // ======================= INIT & SW =======================
   bootstrap();
   if('serviceWorker' in navigator){ window.addEventListener('load', ()=>{ navigator.serviceWorker.register('/sw.js'); }); }
   </script>
 
-  <!-- Parche BA (ya lo tenías) + Listener genérico (no interfiere si no hay data-action) -->
+  <!-- Parche BA (onArtistAccept + augmentAdminCard) -->
   <script src="patches/ba-patch.js"></script>
+
+  <!-- (Opcional) Listener seguro si usas botones con data-action="aceptar" en algún sitio -->
   <script>
-  // Captura clicks en botones de ACEPTAR (si existiera un botón con data-action="aceptar")
   document.addEventListener('click', async (e)=>{
     const btn = e.target.closest('[data-action="aceptar"]');
     if (!btn) return;
