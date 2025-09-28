@@ -1,21 +1,38 @@
-Banco de Artistas - Deploy con Netlify Functions (SendGrid)
-===============================================================
+import nodemailer from 'nodemailer';
 
-1) Variables de entorno (Netlify > Site settings > Environment variables)
-   - SENDGRID_API_KEY = TU_API_KEY_DE_SENDGRID
-   - FROM_EMAIL       = notificaciones@tudominio.com  (remitente verificado en SendGrid)
+const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SECURE, FROM_EMAIL } = process.env;
 
-2) Despliegue
-   - Sube este ZIP a Netlify (Drag & Drop).
-   - Netlify detectará `netlify/functions/send-email.js` y empaquetará la función.
+const transporter = nodemailer.createTransport({
+  host: SMTP_HOST,
+  port: Number(SMTP_PORT || 587),
+  secure: String(SMTP_SECURE || 'false').toLowerCase() === 'true', // true para 465 (SSL)
+  auth: { user: SMTP_USER, pass: SMTP_PASS },
+});
 
-3) Dónde se envían correos
-   - Al registrar ARTISTA (envía PIN a su correo).
-   - Al CONFIRMAR un CONTRATO desde el panel Admin (usuario y artista).
+export const handler = async (event) => {
+  try {
+    if (event.httpMethod !== 'POST') {
+      return { statusCode: 405, body: 'Method Not Allowed' };
+    }
+    const payload = JSON.parse(event.body || '{}');
+    let { to = [], subject = 'Banco de Artistas', html = '' } = payload;
 
-4) Plantillas de Sheets esperadas
-   - Pestañas: artistas, contratos, mensajes.
-   - Encabezados: ver la documentación en el chat.
+    if (!Array.isArray(to)) to = [to].filter(Boolean);
+    to = to.filter(Boolean);
+    if (!to.length) {
+      return { statusCode: 400, body: 'Missing recipients' };
+    }
 
-5) Endpoints (SheetDB)
-   - Configurado a: https://sheetdb.io/api/v1/76ve5brru41h8
+    const info = await transporter.sendMail({
+      from: FROM_EMAIL,
+      to: to.join(','),
+      subject,
+      html,
+    });
+
+    return { statusCode: 200, body: JSON.stringify({ ok: true, id: info.messageId }) };
+  } catch (err) {
+    console.error('SMTP send error:', err);
+    return { statusCode: 500, body: 'Email send error' };
+  }
+};
