@@ -203,6 +203,9 @@
         <div id="artistInfo" class="card" style="margin-top:12px"></div>
         <h4 class="section-title">Contratos</h4>
         <div id="artistContracts"></div>
+
+        <!-- HOOK: mensajes para el artista -->
+        <div id="hookMensajesArtista" style="margin-top:12px"></div>
       </div>
     </div>
   </section>
@@ -213,6 +216,7 @@
       <button class="back" data-back>← Atrás</button>
       <strong>Mis reservas</strong>
     </div>
+
     <div class="wrap">
       <form id="formLookup">
         <div class="two">
@@ -222,7 +226,11 @@
         <input name="contrato" type="text" placeholder="Nº de contrato (opcional)">
         <button class="btn primary">Buscar</button>
       </form>
+
       <div id="lookupResults" style="margin-top:14px"></div>
+
+      <!-- HOOK: uploader de pago + mensajes -->
+      <div id="hookMensajesUsuario"></div>
     </div>
   </section>
 
@@ -548,7 +556,8 @@
       div.innerHTML = `
         <div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
         <div class="muted">Show: ${c.minutos} min • Tu neto: $${c.precio_neto_artista}</div>
-        <div class="note">Usuario: ${c.usuario_nombres} ${contactoVisible? '• '+c.usuario_correo+' • '+c.usuario_celular : '• contacto oculto hasta confirmación'}</div>
+        <div class="note">Usuario: ${c.usuario_nombres} ${contactoVisible? '• '+c.usuario_correo+' • '+(state.artists.find(a=>a.id===c.artista_id)?.celular||'')
+                                : '• contacto oculto hasta confirmación'}</div>
         <div class="peek" style="margin-top:8px">
           <button class="btn primary" data-accion="aceptar">Aceptar</button>
           <button class="btn ghost" data-accion="rechazar">Rechazar</button>
@@ -560,13 +569,23 @@
           const act=b.getAttribute('data-accion');
           try{
             if(act==='aceptar'){
-              if(c.estado==='por confirmar artista'){ c.estado='por validar pago'; await API.updateById('contratos', c.id, {estado:c.estado}); await reloadContracts(); renderPanelArtista(); renderAdmin(); }
+              if(c.estado==='por confirmar artista'){
+                await BA_PATCH.onArtistAccept(c, 24); // ← NUEVO flujo
+                await reloadContracts(); renderPanelArtista(); renderAdmin();
+              } else {
+                alert('Este contrato no está en estado "por confirmar artista".');
+              }
             }else if(act==='rechazar'){
               c.estado='rechazado'; await API.updateById('contratos', c.id, {estado:c.estado}); await reloadContracts(); renderPanelArtista(); renderAdmin();
             }else if(act==='mensaje'){
-              const t = prompt("Escribe un mensaje (visible para las tres partes)"); if(!t) return;
-              await API.create('mensajes', {contrato_ref:c.ref, de:'artista', texto:t, ts:new Date().toISOString()});
-              alert("Mensaje enviado.");
+              const hookA = document.getElementById('hookMensajesArtista');
+              if (hookA){
+                hookA.innerHTML = '';
+                await BA_PATCH.mountInContractDetail(hookA, c, 'artista');
+                hookA.scrollIntoView({behavior:'smooth'});
+              } else {
+                alert("No se encontró el área de mensajes.");
+              }
             }
           }catch(err){ alert("Error al actualizar contrato."); }
         });
@@ -603,9 +622,14 @@
         <div class="peek" style="margin-top:8px"><button class="btn ghost" data-accion="mensaje">Mensaje</button></div>
       `;
       div.querySelector('[data-accion="mensaje"]').addEventListener('click', async ()=>{
-        const t = prompt("Mensaje para el contrato (visible para las tres partes)"); if(!t) return;
-        await API.create('mensajes', {contrato_ref:c.ref, de:'usuario', texto:t, ts:new Date().toISOString()});
-        alert("Mensaje enviado.");
+        const hookU = document.getElementById('hookMensajesUsuario');
+        if (hookU){
+          hookU.innerHTML = '';
+          await BA_PATCH.mountInContractDetail(hookU, c, 'usuario');
+          hookU.scrollIntoView({behavior:'smooth'});
+        } else {
+          alert("No se encontró el área de mensajes.");
+        }
       });
       box.appendChild(div);
     });
@@ -662,6 +686,9 @@
           <button class="btn ghost" data-accion="mensaje">Mensaje</button>
         </div>
       `;
+      // ← añade el bloque de mensajes y comprobante en la tarjeta de admin
+      BA_PATCH.augmentAdminCard(div, c);
+
       div.querySelectorAll('button[data-accion]').forEach(b=>{
         b.addEventListener('click', async ()=>{
           const act = b.getAttribute('data-accion');
@@ -698,6 +725,28 @@
   bootstrap();
   if('serviceWorker' in navigator){ window.addEventListener('load', ()=>{ navigator.serviceWorker.register('/sw.js'); }); }
   </script>
-<script src="patches/ba-patch.js"></script>
+
+  <!-- Parche BA (ya lo tenías) + Listener genérico (no interfiere si no hay data-action) -->
+  <script src="patches/ba-patch.js"></script>
+  <script>
+  // Captura clicks en botones de ACEPTAR (si existiera un botón con data-action="aceptar")
+  document.addEventListener('click', async (e)=>{
+    const btn = e.target.closest('[data-action="aceptar"]');
+    if (!btn) return;
+    const ref = btn.dataset.ref || btn.closest('[data-ref]')?.dataset.ref;
+    if (!ref){ alert('Falta ref del contrato'); return; }
+    try{
+      const r = await fetch(`https://sheetdb.io/api/v1/76ve5brru41h8/search?sheet=contratos&ref=${encodeURIComponent(ref)}`);
+      const j = await r.json();
+      const c = j && j[0];
+      if(!c){ alert('No se encontró el contrato'); return; }
+      await BA_PATCH.onArtistAccept(c, 24);
+      alert('Contrato aceptado. El usuario tiene 24h para subir su comprobante.');
+    }catch(err){
+      console.error(err);
+      alert('No se pudo aceptar el contrato.');
+    }
+  });
+  </script>
 </body>
 </html>
