@@ -1,32 +1,24 @@
-import sgMail from '@sendgrid/mail';
-
-const { SENDGRID_API_KEY, FROM_EMAIL } = process.env;
-
 export const handler = async (event) => {
   try {
     if (event.httpMethod !== 'POST') {
       return { statusCode: 405, body: 'Method Not Allowed' };
     }
-    if (!SENDGRID_API_KEY || !FROM_EMAIL) {
-      return { statusCode: 500, body: 'Missing SENDGRID_API_KEY or FROM_EMAIL env vars' };
-    }
-    sgMail.setApiKey(SENDGRID_API_KEY);
-    const payload = JSON.parse(event.body || '{}');
-    let { to = [], subject = 'Banco de Artistas', html = '' } = payload;
 
-    if (!Array.isArray(to)) to = [to].filter(Boolean);
-    to = to.filter(Boolean);
-
-    if (!to.length) {
-      return { statusCode: 400, body: 'Missing recipients' };
+    const url = process.env.GAS_EMAIL_WEBHOOK;
+    if (!url) {
+      return { statusCode: 500, body: 'Missing GAS_EMAIL_WEBHOOK env var' };
     }
 
-    const msg = { to, from: FROM_EMAIL, subject, html };
-    await sgMail.sendMultiple(msg);
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: event.body || '{}'
+    });
 
-    return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+    const text = await r.text();
+    return { statusCode: r.ok ? 200 : 500, body: text };
   } catch (err) {
-    console.error('Send email error:', err);
-    return { statusCode: 500, body: 'Email send error' };
+    console.error('Relay error:', err);
+    return { statusCode: 500, body: 'Relay error' };
   }
 };
