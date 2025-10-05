@@ -311,16 +311,19 @@
     ADMIN_PASSWORD: "admin2025"
   };
 
-  // ======================= EMAIL (Netlify Function) =======================
+  // ======================= EMAIL (GAS) =======================
+  // Tu GAS_URL:
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbyDEAEFMtnvIfom-xSaylU6Q2ZwJjp6tmjSXFLs8vQF3Oouc68H8tSJxLNKlVHKOtRe/exec';
+
   async function sendEmail({to=[], subject="Banco de Artistas", html=""}){
     try{
-      const r = await fetch('/.netlify/functions/send-email', {
+      const r = await fetch(GAS_URL, {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ to, subject, html })
+        body: JSON.stringify({ action:'sendEmail', to, subject, html })
       });
       return await r.json().catch(()=>({}));
     }catch(e){
-      console.warn("Email no enviado (function no configurada o error):", e);
+      console.warn("Email no enviado (GAS):", e);
       return {ok:false};
     }
   }
@@ -532,7 +535,7 @@
       state.artists.push(artist); renderPeek(); renderExplore();
       const pinBox = qs('#pinResult'); pinBox.classList.remove('hidden');
       pinBox.innerHTML = `<span class="ok">✔</span> Registro recibido. Tu PIN: <strong>${pin}</strong>.<br><span class="muted">También se envió por correo (si está configurado).</span>`;
-      // Email PIN (Netlify Function)
+      // Email PIN
       sendEmail({
         to:[artist.correo],
         subject:'Tu PIN de acceso - Banco de Artistas',
@@ -596,7 +599,7 @@
           try{
             if(act==='aceptar'){
               if(c.estado==='por confirmar artista'){
-                await BA_PATCH.onArtistAccept(c, 24); // ← cambia a pendiente de pago + email al usuario
+                await BA_PATCH.onArtistAccept(c, 24); // ← pasa a 'pendiente de pago' + email al usuario
                 await reloadContracts(); renderPanelArtista(); renderAdmin();
               } else {
                 alert('Este contrato no está en estado "por confirmar artista".');
@@ -607,7 +610,7 @@
               const hookA = document.getElementById('hookMensajesArtista');
               if (hookA){
                 hookA.innerHTML = '';
-                await renderChat(hookA, c, 'artista'); // artista solo envía si CONFIRMADO
+                await renderChat(hookA, c, 'artista'); // artista solo escribe si CONFIRMADO
                 hookA.scrollIntoView({behavior:'smooth'});
               } else {
                 alert("No se encontró el área de mensajes.");
@@ -655,6 +658,7 @@
           const act = b.getAttribute('data-accion');
           try{
             if(act==='subir'){
+              // ======= SUBIR COMPROBANTE via GAS + Drive =======
               const inp = document.createElement('input');
               inp.type = 'file';
               inp.accept = 'image/*,application/pdf';
@@ -662,22 +666,40 @@
                 const file = inp.files && inp.files[0];
                 if(!file) return;
                 try{
-                  const up = new FormData();
-                  up.append('file', file);
-                  up.append('kind', 'payment-proof');
-                  up.append('ref', c.ref);
-                  const rr = await fetch('/.netlify/functions/upload-proof', { method:'POST', body: up });
+                  // 1) leer a base64
+                  const dataUrl = await new Promise((ok,ko)=>{
+                    const fr = new FileReader();
+                    fr.onload = ()=> ok(fr.result);
+                    fr.onerror = ko;
+                    fr.readAsDataURL(file);
+                  });
+                  // 2) subir a GAS → Drive
+                  const rr = await fetch(GAS_URL, {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                      action:'uploadProof',
+                      ref: c.ref,
+                      fileName: file.name,
+                      mimeType: file.type || 'application/octet-stream',
+                      dataUrl
+                    })
+                  });
                   const jj = await rr.json().catch(()=>({}));
                   if(!jj || !jj.ok || !jj.url){ alert('No se pudo subir el comprobante.'); return; }
+
+                  // 3) guardar URL + estado en SheetDB
                   await API.updateById('contratos', c.id, { comprobante_url: jj.url, estado: 'pago en revisión' });
-                  // Notifica al artista que hay pago en revisión
-                  sendEmail({
+
+                  // 4) Notifica al artista con el link
+                  await sendEmail({
                     to:[c.artista_correo],
                     subject:`Comprobante recibido - ${c.ref}`,
-                    html:`<p>El usuario subió un comprobante para el contrato <strong>${c.ref</strong>}.</p>
+                    html:`<p>El usuario subió un comprobante para el contrato <strong>${c.ref}</strong>.</p>
                           <p>Estado: <strong>pago en revisión</strong>.</p>
-                          <p>Puedes ver el comprobante en el panel de administración.</p>`
+                          <p>Comprobante: <a href="${jj.url}">${jj.url}</a></p>`
                   });
+
                   alert('Comprobante subido. Estado: pago en revisión.');
                   renderAdmin && renderAdmin();
                 }catch(e){ console.error(e); alert('Error subiendo comprobante.'); }
@@ -687,7 +709,7 @@
               const hookU = document.getElementById('hookMensajesUsuario');
               if (hookU){
                 hookU.innerHTML = '';
-                await renderChat(hookU, c, 'usuario'); // usuario puede escribir SIEMPRE
+                await renderChat(hookU, c, 'usuario'); // usuario puede escribir siempre
                 hookU.scrollIntoView({behavior:'smooth'});
               } else {
                 alert("No se encontró el área de mensajes.");
@@ -762,7 +784,6 @@
             else if(act==='confirmar') c.estado='confirmado';
             else if(act==='rechazar') c.estado='rechazado';
             if(act==='mensaje'){
-              // Si prefieres chat UI en lugar de prompt, podemos llamar renderChat(div, c, 'admin')
               const t = prompt("Mensaje interno del admin (visible para las tres partes)"); if(!t) return;
               await API.create('mensajes', {contrato_ref:c.ref, de:'admin', texto:t, ts:new Date().toISOString()});
               alert("Mensaje enviado."); return;
@@ -858,11 +879,11 @@
 
   // ======================= INIT & SW =======================
   bootstrap();
-  if('serviceWorker' in navigator){ window.addEventListener('load', ()=>{ navigator.serviceWorker.register('/sw.js'); }); }
+  if('serviceWorker' in navigator){ window.addEventListener('load', ()=>{ navigator.serviceWorker.register('./sw.js'); }); }
   </script>
 
   <!-- Parche BA (onArtistAccept + augmentAdminCard) -->
-  <script src="patches/ba-patch.js"></script>
+  <script src="patches/patches/ba-patch.js"></script>
 
   <!-- (Opcional) Listener seguro si usas botones con data-action="aceptar" en algún sitio -->
   <script>
@@ -886,3 +907,4 @@
   </script>
 </body>
 </html>
+
