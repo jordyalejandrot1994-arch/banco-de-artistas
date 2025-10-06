@@ -311,14 +311,16 @@
     ADMIN_PASSWORD: "admin2025"
   };
 
-  // ======================= EMAIL (GAS) =======================
-  // Tu GAS_URL:
+  // ======================= GAS WEBAPP =======================
+  // Reemplaza por tu URL /exec si cambia la implementación
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbyDEAEFMtnvIfom-xSaylU6Q2ZwJjp6tmjSXFLs8vQF3Oouc68H8tSJxLNKlVHKOtRe/exec';
 
+  // ======================= EMAIL (GAS, CORS-proof) =======================
   async function sendEmail({to=[], subject="Banco de Artistas", html=""}){
     try{
       const r = await fetch(GAS_URL, {
-        method:'POST', headers:{'Content-Type':'application/json'},
+        method:'POST',
+        headers:{ 'Content-Type':'text/plain;charset=utf-8' }, // evita preflight
         body: JSON.stringify({ action:'sendEmail', to, subject, html })
       });
       return await r.json().catch(()=>({}));
@@ -326,6 +328,25 @@
       console.warn("Email no enviado (GAS):", e);
       return {ok:false};
     }
+  }
+
+  // ======================= UPLOAD PROOF (GAS → Drive) =======================
+  function fileToDataUrl(file){
+    return new Promise((ok,ko)=>{
+      const fr = new FileReader();
+      fr.onload = ()=> ok(fr.result);
+      fr.onerror = ko;
+      fr.readAsDataURL(file);
+    });
+  }
+  async function uploadProofToGAS(file, ref){
+    const dataUrl = await fileToDataUrl(file);
+    const r = await fetch(GAS_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action:'uploadProof', ref, fileName:file.name, mimeType:file.type||'application/octet-stream', dataUrl })
+    });
+    return await r.json().catch(()=>({}));
   }
 
   // ======================= API HELPERS =======================
@@ -363,7 +384,7 @@
   const toNum = v => { if(v===null||v===undefined) return 0; const s = String(v).replace(',','.'); const n = parseFloat(s); return isNaN(n)?0:n; };
   function uid(prefix="C"){ const n = Math.floor(Math.random()*1e6).toString().padStart(6,"0"); return prefix + n; }
   function refContrato(){ const d = new Date(); const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,"0"); const day = String(d.getDate()).padStart(2,"0"); const rnd = Math.random().toString(36).slice(2,6).toUpperCase(); return `BA-${y}${m}${day}-${rnd}`; }
-  function stars(rating){ const f=Math.round(Number(rating||0)); return "★".repeat(f)+"☆".repeat(5-f); }
+  function stars(rating){ const f=Math.round(Number(rating||0)); return "★".repeat(Math.min(5,f))+"☆".repeat(Math.max(0,5-f)); }
   function normalizeRow(r){ return {...r,
       aprobado: String(r.aprobado||'').toLowerCase()==='true',
       deleted: String(r.deleted||'').toLowerCase()==='true',
@@ -381,10 +402,25 @@
   qsa('[data-back]').forEach(b=>b.addEventListener('click',()=>{ qsa('.view').forEach(v=>v.classList.remove('active')); }));
   let deferredPrompt=null; window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredPrompt=e;});
   qs('#installBtn').addEventListener('click', async ()=>{ if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; } else alert('Para instalar, abre el menú del navegador y elige "Añadir a la pantalla de inicio".'); });
-  (function adminReveal(){ let taps=0,timer=null; qs('#logo').addEventListener('click',()=>{taps++; if(timer) clearTimeout(timer); timer=setTimeout(()=>{taps=0},600); if(taps>=3){taps=0; abrirAdminLogin();}});
-    document.addEventListener('keydown',(e)=>{ if(e.ctrlKey&&e.altKey&&(e.key.toLowerCase()==='a')) abrirAdminLogin(); }); })();
+
+  // Admin oculto: triple tap + Ctrl+Alt+Q
+  (function adminReveal(){
+    let taps=0,timer=null;
+    qs('#logo').addEventListener('click',()=>{
+      taps++; if(timer) clearTimeout(timer);
+      timer=setTimeout(()=>{taps=0},600);
+      if(taps>=3){taps=0; abrirAdminLogin();}
+    });
+    document.addEventListener('keydown',(e)=>{
+      if(e.ctrlKey&&e.altKey&&(e.key.toLowerCase()==='q')) abrirAdminLogin();
+    });
+  })();
   function abrirAdminLogin(){ qs('#dlgAdmin').showModal(); }
-  qs('#formAdmin').addEventListener('submit',(e)=>{ const pass=new FormData(e.target).get('pass'); if(pass===CONFIG.ADMIN_PASSWORD){ qs('#dlgAdmin').close(); qs('#adminView').classList.add('active'); renderAdmin(); } else { e.preventDefault(); alert('Contraseña inválida'); }});
+  qs('#formAdmin').addEventListener('submit',(e)=>{
+    const pass=new FormData(e.target).get('pass');
+    if(pass===CONFIG.ADMIN_PASSWORD){ qs('#dlgAdmin').close(); qs('#adminView').classList.add('active'); renderAdmin(); }
+    else { e.preventDefault(); alert('Contraseña inválida'); }
+  });
 
   // ======================= BOOTSTRAP =======================
   async function bootstrap(){
@@ -392,7 +428,10 @@
       const rows = await API.getAll('artistas');
       state.artists = rows.map(normalizeRow).filter(a=>!a.deleted);
       renderPeek(); renderExplore();
-    }catch(err){ console.error(err); alert("No se pudo cargar datos desde SheetDB. Verifica el endpoint o permisos."); }
+    }catch(err){
+      console.error(err);
+      alert("No se pudo cargar datos desde SheetDB. Verifica el endpoint o permisos.");
+    }
   }
 
   // ======================= EXPLORAR =======================
@@ -407,8 +446,10 @@
     const list = state.artists.filter(a=>a.aprobado).filter(a=> (!t || (a.tipo_arte||'').toLowerCase()===t) && (!c || (a.ciudad||'').toLowerCase().includes(c)) && (!q || (a.nombre_artistico||'').toLowerCase().includes(q)) );
     list.forEach(a=>{
       const card=document.createElement('div'); card.className='artist';
+      const cover = a.foto ? `<div class="cover" style="background-image:url('${a.foto}');background-size:cover;background-position:center"></div>`
+                           : `<div class="cover">${a.nombre_artistico}</div>`;
       card.innerHTML = `
-        <div class="cover" style="background-image:url('${a.foto||''}');background-size:cover;background-position:center">${!a.foto? a.nombre_artistico : ""}</div>
+        ${cover}
         <div class="pad">
           <div class="row"><strong>${a.nombre_artistico}</strong><span class="badge">${a.tipo_arte||''}</span></div>
           <div class="muted">${a.ciudad||''}</div>
@@ -424,6 +465,7 @@
   // ======================= DETALLE & CONTRATAR =======================
   let artistaActual=null;
   const dlgContratar = qs('#dlgContratar');
+
   function verArtista(id){
     const a = state.artists.find(x=>x.id===id); artistaActual=a;
     const v = document.createElement('section'); v.className='view active'; v.id='viewDetalle';
@@ -433,7 +475,7 @@
       <div class="wrap">
         <div class="card">
           <div class="two">
-            <img src="${a.foto||''}" alt="portada" style="width:100%;border-radius:14px;max-height:260px;object-fit:cover">
+            <img src="${a.foto||''}" alt="portada" style="width:100%;border-radius:14px;max-height:260px;object-fit:cover" onerror="this.style.display='none'">
             <div>
               <div class="chip">${a.tipo_arte} • ${a.ciudad}</div>
               <div style="margin-top:8px" class="star">${stars(a.rating||0)} <span class="muted">(${a.votos||0} votos)</span></div>
@@ -443,19 +485,21 @@
               <button class="btn primary" id="btnContratar">Contratar</button>
             </div>
           </div>
-          <div style="margin-top:12px"><a href="${a.video||'#'}" target="_blank">Ver video de muestra</a></div>
+          <div style="margin-top:12px"><a href="${a.video||'#'}" target="_blank" rel="noopener">Ver video de muestra</a></div>
         </div>
       </div>`;
     document.body.appendChild(v);
     v.querySelector('#backDetalle').addEventListener('click',()=> v.remove());
     v.querySelector('#btnContratar').addEventListener('click',()=>{ qs('#contratarNombre').textContent=a.nombre_artistico; dlgContratar.showModal(); });
   }
+
   qs('#formContratar').addEventListener('change', ()=>{
     if(!artistaActual) return;
     const minutos = Number(new FormData(qs('#formContratar')).get('duracion')||0);
     const {precioUser} = calcPrecio(artistaActual, minutos||15);
     qs('input[name="precio_calculado"]').value = precioUser? ('$'+precioUser) : '';
   });
+
   qs('#formContratar').addEventListener('submit', async (e)=>{
     const fd = new FormData(qs('#formContratar'));
     const minutos = Number(fd.get('duracion')||15);
@@ -466,32 +510,27 @@
       ref,
       estado: "por confirmar artista",
       fecha_creacion: new Date().toISOString(),
-      // ---- NUEVO: guardar fecha/hora del evento
       fecha: fd.get('fecha'),
       hora: fd.get('hora'),
-      // ---- Datos usuario
       usuario_nombres: fd.get('nombres'),
       usuario_cedula: fd.get('cedula'),
       usuario_celular: fd.get('celular'),
-      usuario_correo: fd.get('correo'),
+      usuario_correo: (fd.get('correo')||"").toLowerCase().trim(),
       usuario_ciudad: fd.get('ciudad'),
       usuario_barrio: fd.get('barrio'),
       usuario_calles: fd.get('calles'),
       usuario_referencias: fd.get('referencias'),
-      // ---- Datos artista
       artista_id: artistaActual.id,
       artista_nombre: artistaActual.nombre_artistico,
       artista_correo: artistaActual.correo,
-      // ---- Precios
       minutos,
       precio_user: prices.precioUser,
       precio_neto_artista: prices.precioNetoArtista
     };
     try{
       await API.create('contratos', contrato);
-
-      // ---- NUEVO: correo al ARTISTA con detalles del contrato
-      sendEmail({
+      // Aviso a ARTISTA
+      await sendEmail({
         to:[artistaActual.correo],
         subject:`Nuevo contrato recibido: ${ref}`,
         html: `
@@ -507,7 +546,6 @@
           <p style="color:#555">Ingresa a "Ingresar como artista" para Aceptar o Rechazar.</p>
         `
       });
-
       alert("Contrato generado. Nº "+ref+" — Revisa su estado en MIS RESERVAS.");
       dlgContratar.close();
     }catch(err){ console.error(err); alert("No se pudo crear el contrato en SheetDB."); }
@@ -520,12 +558,12 @@
     const pin = (Math.floor(Math.random()*900000)+100000).toString();
     const artist = {
       id: uid('A'),
-      aprobado:true,              // ← auto-aprobado
+      aprobado:true,              // auto-aprobado (puedes cambiar en Admin)
       rating:0, votos:0,
       foto:fd.get('foto'), video:fd.get('video'),
       nombre_artistico:fd.get('nombre_artistico'), nombre_real:fd.get('nombre_real'),
       cedula:fd.get('cedula'), ciudad:fd.get('ciudad'),
-      celular:fd.get('celular'), correo:fd.get('correo'),
+      celular:fd.get('celular'), correo:(fd.get('correo')||"").toLowerCase().trim(),
       tipo_arte:fd.get('tipo_arte'),
       p15:Number(fd.get('p15')||0), p30:Number(fd.get('p30')||0), p60:Number(fd.get('p60')||0), p120:Number(fd.get('p120')||0),
       bio:fd.get('bio'), pin, deleted:false
@@ -536,7 +574,7 @@
       const pinBox = qs('#pinResult'); pinBox.classList.remove('hidden');
       pinBox.innerHTML = `<span class="ok">✔</span> Registro recibido. Tu PIN: <strong>${pin}</strong>.<br><span class="muted">También se envió por correo (si está configurado).</span>`;
       // Email PIN
-      sendEmail({
+      await sendEmail({
         to:[artist.correo],
         subject:'Tu PIN de acceso - Banco de Artistas',
         html:`<p>Hola ${artist.nombre_artistico},</p><p>Tu PIN es <strong>${pin}</strong>. Úsalo con tu correo para ingresar como artista.</p>`
@@ -579,7 +617,6 @@
     const my = state.contracts.filter(c=>String(c.artista_id)===String(id));
     if(my.length===0){ cont.innerHTML='<div class="note">No hay contratos aún.</div>'; return; }
     my.forEach(c=>{
-      const contactoVisible = (c.estado==='confirmado');
       const div=document.createElement('div'); div.className='card';
       div.innerHTML = `
         <div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
@@ -599,22 +636,15 @@
           try{
             if(act==='aceptar'){
               if(c.estado==='por confirmar artista'){
-                await BA_PATCH.onArtistAccept(c, 24); // ← pasa a 'pendiente de pago' + email al usuario
+                await BA_PATCH.onArtistAccept(c, 24);
                 await reloadContracts(); renderPanelArtista(); renderAdmin();
-              } else {
-                alert('Este contrato no está en estado "por confirmar artista".');
-              }
+              } else { alert('Este contrato no está en estado "por confirmar artista".'); }
             }else if(act==='rechazar'){
               c.estado='rechazado'; await API.updateById('contratos', c.id, {estado:c.estado}); await reloadContracts(); renderPanelArtista(); renderAdmin();
             }else if(act==='mensaje'){
               const hookA = document.getElementById('hookMensajesArtista');
-              if (hookA){
-                hookA.innerHTML = '';
-                await renderChat(hookA, c, 'artista'); // artista solo escribe si CONFIRMADO
-                hookA.scrollIntoView({behavior:'smooth'});
-              } else {
-                alert("No se encontró el área de mensajes.");
-              }
+              if (hookA){ hookA.innerHTML = ''; await renderChat(hookA, c, 'artista'); hookA.scrollIntoView({behavior:'smooth'}); }
+              else { alert("No se encontró el área de mensajes."); }
             }
           }catch(err){ alert("Error al actualizar contrato."); }
         });
@@ -640,16 +670,13 @@
     const box = qs('#lookupResults'); box.innerHTML="";
     if(!res.length){ box.innerHTML='<div class="note">No se encontraron contratos.</div>'; return; }
     res.forEach(c=>{
-      const visible = c.estado==='confirmado';
       const div=document.createElement('div'); div.className='card';
       div.innerHTML = `
         <div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
         <div class="note">Artista: ${c.artista_nombre}</div>
         <div class="note">Fecha: ${new Date(c.fecha_creacion).toLocaleDateString()}</div>
-        <div class="note">${visible? 'Contacto de artista: '+c.artista_correo+' • '+(state.artists.find(a=>a.id===c.artista_id)?.celular||'')
-                                : 'El contacto del artista se liberará una vez confirmado.'}</div>
         <div class="peek" style="margin-top:8px">
-          ${ (c.estado==='pendiente de pago' || c.estado==='por validar pago') ? '<button class="btn primary" data-accion="subir">Subir comprobante</button>' : '' }
+          ${ (c.estado==='pendiente de pago' || c.estado==='por validar pago' || c.estado==='pago en revisión') ? '<button class="btn primary" data-accion="subir">Subir comprobante</button>' : '' }
           <button class="btn ghost" data-accion="mensaje">Mensaje</button>
         </div>
       `;
@@ -658,7 +685,6 @@
           const act = b.getAttribute('data-accion');
           try{
             if(act==='subir'){
-              // ======= SUBIR COMPROBANTE via GAS + Drive =======
               const inp = document.createElement('input');
               inp.type = 'file';
               inp.accept = 'image/*,application/pdf';
@@ -666,32 +692,10 @@
                 const file = inp.files && inp.files[0];
                 if(!file) return;
                 try{
-                  // 1) leer a base64
-                  const dataUrl = await new Promise((ok,ko)=>{
-                    const fr = new FileReader();
-                    fr.onload = ()=> ok(fr.result);
-                    fr.onerror = ko;
-                    fr.readAsDataURL(file);
-                  });
-                  // 2) subir a GAS → Drive
-                  const rr = await fetch(GAS_URL, {
-                    method:'POST',
-                    headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({
-                      action:'uploadProof',
-                      ref: c.ref,
-                      fileName: file.name,
-                      mimeType: file.type || 'application/octet-stream',
-                      dataUrl
-                    })
-                  });
-                  const jj = await rr.json().catch(()=>({}));
+                  const jj = await uploadProofToGAS(file, c.ref);
                   if(!jj || !jj.ok || !jj.url){ alert('No se pudo subir el comprobante.'); return; }
-
-                  // 3) guardar URL + estado en SheetDB
                   await API.updateById('contratos', c.id, { comprobante_url: jj.url, estado: 'pago en revisión' });
 
-                  // 4) Notifica al artista con el link
                   await sendEmail({
                     to:[c.artista_correo],
                     subject:`Comprobante recibido - ${c.ref}`,
@@ -707,13 +711,8 @@
               inp.click();
             } else if(act==='mensaje'){
               const hookU = document.getElementById('hookMensajesUsuario');
-              if (hookU){
-                hookU.innerHTML = '';
-                await renderChat(hookU, c, 'usuario'); // usuario puede escribir siempre
-                hookU.scrollIntoView({behavior:'smooth'});
-              } else {
-                alert("No se encontró el área de mensajes.");
-              }
+              if (hookU){ hookU.innerHTML = ''; await renderChat(hookU, c, 'usuario'); hookU.scrollIntoView({behavior:'smooth'}); }
+              else { alert("No se encontró el área de mensajes."); }
             }
           }catch(err){ console.error(err); alert("Error en la acción."); }
         });
@@ -728,8 +727,10 @@
     const grid = qs('#adminArtists'); grid.innerHTML="";
     state.artists.forEach(a=>{
       const card=document.createElement('div'); card.className='artist';
+      const cover = a.foto ? `<div class="cover" style="background-image:url('${a.foto}');background-size:cover;background-position:center"></div>`
+                           : `<div class="cover">${a.nombre_artistico}</div>`;
       card.innerHTML=`
-        <div class="cover" style="background-image:url('${a.foto||''}');background-size:cover;background-position:center"></div>
+        ${cover}
         <div class="pad">
           <div class="row"><strong>${a.nombre_artistico}</strong><span class="badge">${a.aprobado? 'aprobado':'pendiente'}</span></div>
           <div class="muted">${a.tipo_arte} • ${a.ciudad} • ${a.correo}</div>
@@ -773,7 +774,8 @@
           <button class="btn ghost" data-accion="mensaje">Mensaje</button>
         </div>
       `;
-      // Añade link de comprobante y chat admin (BA_PATCH lo gestiona)
+
+      // Añade link de comprobante + chat admin
       BA_PATCH.augmentAdminCard(div, c);
 
       div.querySelectorAll('button[data-accion]').forEach(b=>{
@@ -783,15 +785,17 @@
             if(act==='a_validar') c.estado='por validar pago';
             else if(act==='confirmar') c.estado='confirmado';
             else if(act==='rechazar') c.estado='rechazado';
+
             if(act==='mensaje'){
               const t = prompt("Mensaje interno del admin (visible para las tres partes)"); if(!t) return;
               await API.create('mensajes', {contrato_ref:c.ref, de:'admin', texto:t, ts:new Date().toISOString()});
               alert("Mensaje enviado."); return;
             }
+
             await API.updateById('contratos', c.id, {estado:c.estado});
-            // Si confirmamos, enviamos correos a usuario y artista
+
             if(act==='confirmar'){
-              sendEmail({
+              await sendEmail({
                 to:[c.usuario_correo, c.artista_correo],
                 subject:`Contrato ${c.ref} confirmado ✔`,
                 html:`<h2>¡Confirmado!</h2>
@@ -829,15 +833,9 @@
     const textEl = container.querySelector('#chatText');
     const hintEl = container.querySelector('#chatHint');
 
-    // Permisos: admin siempre; usuario siempre; artista solo si confirmado
     const canSend = (role==='admin') || (role==='usuario') || (role==='artista' && contrato.estado==='confirmado');
-    if(!canSend){
-      sendBtn.disabled = true;
-      textEl.disabled = true;
-      hintEl.textContent = 'El artista podrá escribir cuando el contrato esté confirmado.';
-    } else {
-      hintEl.textContent = '';
-    }
+    if(!canSend){ sendBtn.disabled = true; textEl.disabled = true; hintEl.textContent = 'El artista podrá escribir cuando el contrato esté confirmado.'; }
+    else { hintEl.textContent = ''; }
 
     async function load(){
       try{
@@ -879,13 +877,15 @@
 
   // ======================= INIT & SW =======================
   bootstrap();
-  if('serviceWorker' in navigator){ window.addEventListener('load', ()=>{ navigator.serviceWorker.register('./sw.js'); }); }
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
+  }
   </script>
 
   <!-- Parche BA (onArtistAccept + augmentAdminCard) -->
   <script src="patches/patches/ba-patch.js"></script>
 
-  <!-- (Opcional) Listener seguro si usas botones con data-action="aceptar" en algún sitio -->
+  <!-- Listener opcional para botones con data-action="aceptar" si existieran -->
   <script>
   document.addEventListener('click', async (e)=>{
     const btn = e.target.closest('[data-action="aceptar"]');
@@ -893,7 +893,7 @@
     const ref = btn.dataset.ref || btn.closest('[data-ref]')?.dataset.ref;
     if (!ref){ alert('Falta ref del contrato'); return; }
     try{
-      const r = await fetch(`https://sheetdb.io/api/v1/76ve5brru41h8/search?sheet=contratos&ref=${encodeURIComponent(ref)}`);
+      const r = await fetch(`${CONFIG.SHEETDB_ENDPOINT}/search?sheet=contratos&ref=${encodeURIComponent(ref)}`);
       const j = await r.json();
       const c = j && j[0];
       if(!c){ alert('No se encontró el contrato'); return; }
@@ -907,4 +907,3 @@
   </script>
 </body>
 </html>
-
