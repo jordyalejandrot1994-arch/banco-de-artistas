@@ -318,16 +318,16 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbzkqPyew2D6lXoanOmboyu1
 
   // ======================= EMAIL (GAS, CORS-proof) =======================
   async function sendEmail({to=[], subject="Banco de Artistas", html=""}){
-    try{
-      const r = await fetch(GAS_URL, {
-        method:'POST',
-        headers:{ 'Content-Type':'text/plain;charset=utf-8' }, // evita preflight
-        body: JSON.stringify({ action:'sendEmail', to, subject, html })
-      });
-      return await r.json().catch(()=>({}));
-    }catch(e){
-      console.warn("Email no enviado (GAS):", e);
-      return {ok:false};
+  try{
+    const r = await fetch(GAS_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' }, // 👈 actualizado
+      body: JSON.stringify({ action:'sendEmail', to, subject, html })
+    });
+    return await r.json().catch(()=>({}));
+  }catch(e){
+    console.warn("Email no enviado (GAS):", e);
+    return {ok:false};
     }
   }
 
@@ -341,13 +341,24 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbzkqPyew2D6lXoanOmboyu1
     });
   }
   async function uploadProofToGAS(file, ref){
-    const dataUrl = await fileToDataUrl(file);
-    const r = await fetch(GAS_URL, {
-      method:'POST',
-      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action:'uploadProof', ref, fileName:file.name, mimeType:file.type||'application/octet-stream', dataUrl })
-    });
-    return await r.json().catch(()=>({}));
+  const dataUrl = await new Promise((ok,ko)=>{
+    const fr = new FileReader();
+    fr.onload = ()=> ok(fr.result);
+    fr.onerror = ko;
+    fr.readAsDataURL(file);
+  });
+  const r = await fetch(GAS_URL, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' }, // 👈 actualizado
+    body: JSON.stringify({
+      action:'uploadProof',
+      ref,
+      fileName: file.name,
+      mimeType: file.type || 'application/octet-stream',
+      dataUrl
+    })
+  });
+  return await r.json().catch(()=>({}));
   }
 
   // ======================= API HELPERS =======================
