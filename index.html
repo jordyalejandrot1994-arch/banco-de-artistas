@@ -312,47 +312,45 @@
   };
 
   // ======================= GAS WEBAPP =======================
-  // Reemplaza por tu URL /exec si cambia la implementación
-  // AHORA (correcta)
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyWnV2a97GHuRJS0_ptd2VBrdfADZJWWp1HjkgOfg4Ol-VuX2k36ZFJWO_M0Fbrp_Fx/exec';
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbyWnV2a97GHuRJS0_ptd2VBrdfADZJWWp1HjkgOfg4Ol-VuX2k36ZFJWO_M0Fbrp_Fx/exec';
 
   // ======================= EMAIL (GAS, CORS-proof) =======================
-async function sendEmail({to=[], subject="Banco de Artistas", html=""}){
-  try{
-    const r = await fetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type':'text/plain;charset=utf-8' }, // evita preflight CORS
-      body: JSON.stringify({ action:'sendEmail', to, subject, html })
-    });
-    return await r.json().catch(()=>({}));
-  }catch(e){
-    console.warn("Email no enviado (GAS):", e);
-    return { ok:false };
+  async function sendEmail({to=[], subject="Banco de Artistas", html=""}){
+    try{
+      const r = await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type':'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action:'sendEmail', to, subject, html })
+      });
+      return await r.json().catch(()=>({}));
+    }catch(e){
+      console.warn("Email no enviado (GAS):", e);
+      return { ok:false };
+    }
   }
-}
 
   // ======================= SUBIR COMPROBANTE A GAS =======================
-async function uploadProofToGAS(file, ref){
-  const dataUrl = await new Promise((ok,ko)=>{
-    const fr = new FileReader();
-    fr.onload = ()=> ok(fr.result);
-    fr.onerror = ko;
-    fr.readAsDataURL(file);
-  });
+  async function uploadProofToGAS(file, ref){
+    const dataUrl = await new Promise((ok,ko)=>{
+      const fr = new FileReader();
+      fr.onload = ()=> ok(fr.result);
+      fr.onerror = ko;
+      fr.readAsDataURL(file);
+    });
 
-  const r = await fetch(GAS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type':'text/plain;charset=utf-8' }, // evita preflight CORS
-    body: JSON.stringify({
-      action: 'uploadProof',
-      ref,
-      fileName: file.name,
-      mimeType: file.type || 'application/octet-stream',
-      dataUrl
-    })
-  });
-  return await r.json().catch(()=>({}));
-}
+    const r = await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'uploadProof',
+        ref,
+        fileName: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        dataUrl
+      })
+    });
+    return await r.json().catch(()=>({}));
+  }
 
   // ======================= API HELPERS =======================
   const API = {
@@ -563,7 +561,7 @@ async function uploadProofToGAS(file, ref){
     const pin = (Math.floor(Math.random()*900000)+100000).toString();
     const artist = {
       id: uid('A'),
-      aprobado:true,              // auto-aprobado (puedes cambiar en Admin)
+      aprobado:true,
       rating:0, votos:0,
       foto:fd.get('foto'), video:fd.get('video'),
       nombre_artistico:fd.get('nombre_artistico'), nombre_real:fd.get('nombre_real'),
@@ -578,7 +576,6 @@ async function uploadProofToGAS(file, ref){
       state.artists.push(artist); renderPeek(); renderExplore();
       const pinBox = qs('#pinResult'); pinBox.classList.remove('hidden');
       pinBox.innerHTML = `<span class="ok">✔</span> Registro recibido. Tu PIN: <strong>${pin}</strong>.<br><span class="muted">También se envió por correo (si está configurado).</span>`;
-      // Email PIN
       await sendEmail({
         to:[artist.correo],
         subject:'Tu PIN de acceso - Banco de Artistas',
@@ -647,9 +644,7 @@ async function uploadProofToGAS(file, ref){
             }else if(act==='rechazar'){
               c.estado='rechazado'; await API.updateById('contratos', c.id, {estado:c.estado}); await reloadContracts(); renderPanelArtista(); renderAdmin();
             }else if(act==='mensaje'){
-              const hookA = document.getElementById('hookMensajesArtista');
-              if (hookA){ hookA.innerHTML = ''; await renderChat(hookA, c, 'artista'); hookA.scrollIntoView({behavior:'smooth'}); }
-              else { alert("No se encontró el área de mensajes."); }
+              openChat(c, 'artista');
             }
           }catch(err){ alert("Error al actualizar contrato."); }
         });
@@ -715,9 +710,7 @@ async function uploadProofToGAS(file, ref){
               };
               inp.click();
             } else if(act==='mensaje'){
-              const hookU = document.getElementById('hookMensajesUsuario');
-              if (hookU){ hookU.innerHTML = ''; await renderChat(hookU, c, 'usuario'); hookU.scrollIntoView({behavior:'smooth'}); }
-              else { alert("No se encontró el área de mensajes."); }
+              openChat(c, 'usuario');
             }
           }catch(err){ console.error(err); alert("Error en la acción."); }
         });
@@ -780,7 +773,7 @@ async function uploadProofToGAS(file, ref){
         </div>
       `;
 
-      // Añade link de comprobante + chat admin
+      // Link de comprobante + extras del patch
       BA_PATCH.augmentAdminCard(div, c);
 
       div.querySelectorAll('button[data-accion]').forEach(b=>{
@@ -792,9 +785,8 @@ async function uploadProofToGAS(file, ref){
             else if(act==='rechazar') c.estado='rechazado';
 
             if(act==='mensaje'){
-              const t = prompt("Mensaje interno del admin (visible para las tres partes)"); if(!t) return;
-              await API.create('mensajes', {contrato_ref:c.ref, de:'admin', texto:t, ts:new Date().toISOString()});
-              alert("Mensaje enviado."); return;
+              openChat(c, 'admin');
+              return;
             }
 
             await API.updateById('contratos', c.id, {estado:c.estado});
@@ -817,67 +809,95 @@ async function uploadProofToGAS(file, ref){
     });
   }
 
-  // ======================= CHAT UNIFICADO =======================
-  async function renderChat(container, contrato, role){
-    container.innerHTML = `
-      <div class="card">
-        <div class="row"><strong>Mensajes</strong><span class="badge">${contrato.ref}</span></div>
-        <div id="chatList" class="note" style="max-height:220px;overflow:auto;margin-top:8px">Cargando…</div>
-        <div id="chatForm" style="margin-top:8px">
-          <textarea id="chatText" rows="2" placeholder="Escribe un mensaje…"></textarea>
-          <div style="display:flex;gap:8px;margin-top:6px">
-            <button id="chatSend" class="btn primary">Enviar</button>
-            <span id="chatHint" class="note"></span>
-          </div>
-        </div>
-      </div>
-    `;
+  // ======================= CHAT UNIFICADO (DIALOG + CANALES) =======================
+  async function openChat(contrato, role){
+    const dlg = document.getElementById('dlgChat');
+    const refEl = document.getElementById('dlgChatRef');
+    const listEl = document.getElementById('chatList');
+    const sendBtn = document.getElementById('chatSend');
+    const textEl = document.getElementById('chatText');
+    const hintEl = document.getElementById('chatHint');
+    const canalSel = document.getElementById('chatCanal');
+    const audienceRow = document.getElementById('chatAudienceRow');
 
-    const listEl = container.querySelector('#chatList');
-    const sendBtn = container.querySelector('#chatSend');
-    const textEl = container.querySelector('#chatText');
-    const hintEl = container.querySelector('#chatHint');
+    refEl.textContent = contrato.ref || '';
 
-    const canSend = (role==='admin') || (role==='usuario') || (role==='artista' && contrato.estado==='confirmado');
-    if(!canSend){ sendBtn.disabled = true; textEl.disabled = true; hintEl.textContent = 'El artista podrá escribir cuando el contrato esté confirmado.'; }
-    else { hintEl.textContent = ''; }
+    const confirmado = (String(contrato.estado||'').toLowerCase()==='confirmado');
+    const canales = [];
+    if (role === 'admin'){
+      canales.push({v:'admin-usuario', label:'Admin ⇄ Usuario'});
+      canales.push({v:'admin-artista', label:'Admin ⇄ Artista'});
+      if (confirmado) canales.push({v:'todos', label:'Usuario ⇄ Artista (Todos)'});
+    } else if (role === 'usuario'){
+      canales.push({v:'admin-usuario', label:'Con Admin'});
+      if (confirmado) canales.push({v:'todos', label:'Con Artista (Todos)'});
+    } else if (role === 'artista'){
+      canales.push({v:'admin-artista', label:'Con Admin'});
+      if (confirmado) canales.push({v:'todos', label:'Con Usuario (Todos)'});
+    }
+
+    canalSel.innerHTML = '';
+    canales.forEach(c=>{ const opt=document.createElement('option'); opt.value=c.v; opt.textContent=c.label; canalSel.appendChild(opt); });
+    audienceRow.style.display = canales.length > 1 ? 'flex' : 'none';
+
+    function canSendFor(canal){ return canal==='todos' ? confirmado : true; }
 
     async function load(){
       try{
         const msgs = await API.search('mensajes', { contrato_ref: contrato.ref });
         msgs.sort((a,b)=> (a.ts||'').localeCompare(b.ts||''));
-        if(!msgs.length){ listEl.innerHTML = '<div class="note">Sin mensajes aún.</div>'; return; }
-        listEl.innerHTML = msgs.map(m=>`
-          <div style="margin:6px 0">
-            <strong>${(m.de||'').toUpperCase()}</strong>
-            <span class="muted" style="font-size:.8rem">${m.ts? new Date(m.ts).toLocaleString(): ''}</span>
-            <div>${(m.texto||'').replace(/</g,'&lt;')}</div>
-          </div>
-        `).join('');
+        const visibles = new Set(
+          (role==='admin')
+            ? (confirmado ? ['admin-usuario','admin-artista','todos'] : ['admin-usuario','admin-artista'])
+            : (role==='usuario')
+              ? (confirmado ? ['admin-usuario','todos'] : ['admin-usuario'])
+              : (confirmado ? ['admin-artista','todos'] : ['admin-artista'])
+        );
+        const html = msgs
+          .filter(m => visibles.has(m.canal || 'todos'))
+          .map(m=>{
+            const canal = m.canal || 'todos';
+            const quien = (m.de||'').toUpperCase();
+            const when = m.ts ? new Date(m.ts).toLocaleString() : '';
+            return `<div style="margin:6px 0">
+              <div style="display:flex;gap:8px;align-items:center">
+                <strong>${quien}</strong>
+                <span class="badge" style="opacity:.85">${canal}</span>
+                <span class="muted" style="font-size:.8rem">${when}</span>
+              </div>
+              <div>${(m.texto||'').replace(/</g,'&lt;')}</div>
+            </div>`;
+          }).join('');
+        listEl.innerHTML = html || '<div class="note">Sin mensajes aún.</div>';
         listEl.scrollTop = listEl.scrollHeight;
+
+        const canal = canalSel.value;
+        const allowed = canSendFor(canal);
+        sendBtn.disabled = !allowed; textEl.disabled = !allowed;
+        hintEl.textContent = allowed ? '' : 'Este canal se habilita cuando el contrato está confirmado.';
       }catch(e){
         listEl.innerHTML = '<div class="danger">No se pudieron cargar mensajes.</div>';
       }
     }
 
-    sendBtn.addEventListener('click', async ()=>{
-      const t = (textEl.value||'').trim();
-      if(!t) return;
-      if(!canSend){ return; }
+    document.getElementById('chatSend').onclick = async ()=>{
+      const t = (textEl.value||'').trim(); if(!t) return;
+      const canal = canalSel.value; if(!canSendFor(canal)) return;
       try{
         await API.create('mensajes', {
           id: uid('M'),
           contrato_ref: contrato.ref,
           de: role,
+          canal,
           texto: t,
           ts: new Date().toISOString()
         });
-        textEl.value = '';
-        await load();
+        textEl.value=''; await load();
       }catch(e){ alert('No se pudo enviar el mensaje.'); }
-    });
+    };
 
-    await load();
+    canalSel.onchange = load;
+    dlg.showModal(); await load();
   }
 
   // ======================= INIT & SW =======================
@@ -910,29 +930,30 @@ async function uploadProofToGAS(file, ref){
     }
   });
   </script>
-<!-- DIALOGO CHAT UNIFICADO -->
-<dialog id="dlgChat">
-  <form method="dialog" id="formChat">
-    <h3 style="margin:0 0 8px">Chat del contrato <span id="dlgChatRef"></span></h3>
 
-    <div id="chatAudienceRow" style="display:flex; gap:8px; align-items:center; margin-bottom:8px">
-      <label for="chatCanal">Audiencia:</label>
-      <select id="chatCanal"></select>
-      <span id="chatHint" class="note"></span>
-    </div>
+  <!-- DIALOGO CHAT UNIFICADO -->
+  <dialog id="dlgChat">
+    <form method="dialog" id="formChat">
+      <h3 style="margin:0 0 8px">Chat del contrato <span id="dlgChatRef"></span></h3>
 
-    <div id="chatList" class="note" style="max-height:260px; overflow:auto; background:#0c1628; padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.1)">
-      Cargando…
-    </div>
-
-    <div style="margin-top:8px">
-      <textarea id="chatText" rows="3" placeholder="Escribe un mensaje…" style="width:100%"></textarea>
-      <div style="display:flex; gap:8px; margin-top:6px">
-        <button id="chatSend" class="btn primary" type="button">Enviar</button>
-        <button class="btn ghost" value="cancel">Cerrar</button>
+      <div id="chatAudienceRow" style="display:flex; gap:8px; align-items:center; margin-bottom:8px">
+        <label for="chatCanal">Audiencia:</label>
+        <select id="chatCanal"></select>
+        <span id="chatHint" class="note"></span>
       </div>
-    </div>
-  </form>
-</dialog>
+
+      <div id="chatList" class="note" style="max-height:260px; overflow:auto; background:#0c1628; padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.1)">
+        Cargando…
+      </div>
+
+      <div style="margin-top:8px">
+        <textarea id="chatText" rows="3" placeholder="Escribe un mensaje…" style="width:100%"></textarea>
+        <div style="display:flex; gap:8px; margin-top:6px">
+          <button id="chatSend" class="btn primary" type="button">Enviar</button>
+          <button class="btn ghost" value="cancel">Cerrar</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
 </body>
 </html>
