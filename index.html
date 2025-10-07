@@ -982,5 +982,53 @@
 
   <!-- Parche BA (onArtistAccept + augmentAdminCard). Usa ?v=2 para evitar caché -->
   <script src="patches/patches/ba-patch.js?v=2"></script>
+  <script>
+/* Fallback robusto para ACEPTAR contrato desde la tarjeta del artista */
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-accion="aceptar"]');
+  if (!btn) return;
+
+  btn.disabled = true;
+  const oldTxt = btn.textContent;
+  btn.textContent = 'Aceptando…';
+
+  try {
+    // 1) Tomar la ref desde la tarjeta (el <strong> tiene la ref)
+    const card = btn.closest('.card');
+    const ref = (card?.querySelector('strong')?.textContent || '').trim();
+    if (!ref) throw new Error('No se encontró la referencia del contrato en la tarjeta.');
+
+    // 2) Traer el contrato por ref desde SheetDB
+    const url = `${CONFIG.SHEETDB_ENDPOINT}/search?sheet=contratos&ref=${encodeURIComponent(ref)}`;
+    const r = await fetch(url);
+    const j = await r.json().catch(()=>[]);
+    const c = j && j[0];
+    if (!c) throw new Error('No se encontró el contrato en la base (ref: ' + ref + ').');
+
+    // 3) Ejecutar la lógica del parche (BA_PATCH) para poner "pendiente de pago"
+    if (typeof BA_PATCH === 'undefined') {
+      throw new Error('BA_PATCH no está cargado. Revisa que patches/patches/ba-patch.js existe y se carga después del index.');
+    }
+
+    const ok = await BA_PATCH.onArtistAccept(c, 24);
+    if (!ok) {
+      alert('No se pudo aceptar el contrato.');
+      return;
+    }
+
+    alert('Contrato aceptado. El usuario tiene 24h para subir su comprobante.');
+    // 4) Refrescar panel
+    if (typeof reloadContracts === 'function') { await reloadContracts(); }
+    if (typeof renderPanelArtista === 'function') { renderPanelArtista(); }
+    if (typeof renderAdmin === 'function') { renderAdmin(); }
+  } catch (err) {
+    console.error(err);
+    alert('No se pudo aceptar el contrato.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = oldTxt || 'Aceptar';
+  }
+});
+</script>
 </body>
 </html>
