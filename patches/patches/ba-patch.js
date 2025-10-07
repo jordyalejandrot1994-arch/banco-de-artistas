@@ -45,21 +45,67 @@ window.BA_PATCH = (() => {
   }
 
   async function onArtistAccept(c, horasLimite = 24){
+  try{
+    log('onArtistAccept INICIO para', c?.ref, 'id=', c?.id);
+
+    // seguridad básica
+    if(!c || !c.id){
+      log('Contrato sin ID. No se puede actualizar.');
+      return false;
+    }
+
+    // cambia a "pendiente de pago" con fecha límite
+    const venceISO = new Date(Date.now() + horasLimite*60*60*1000).toISOString();
+    const ok = await actualizarContrato(c, { estado:'pendiente de pago', vence_pago: venceISO });
+
+    if(!ok){
+      log('No se pudo actualizar el contrato en SheetDB (ni con fallback).');
+      return false;
+    }
+
+    // ----- correos (no deben romper el flujo si fallan) -----
+
+    // Usuario: aviso de que el artista aceptó y debe subir comprobante
     try{
-      log('onArtistAccept INICIO para', c?.ref, 'id=', c?.id);
+      await sendEmail({
+        to: [c.usuario_correo].filter(Boolean),
+        subject: `Contrato ${c.ref}: pendiente de pago`,
+        html: `
+          <h2>Tu contrato fue aceptado</h2>
+          <p><strong>Referencia:</strong> ${c.ref}</p>
+          <p><strong>Artista:</strong> ${c.artista_nombre||''}</p>
+          <p><strong>Duración:</strong> ${c.minutos||''} minutos</p>
+          <p><strong>Total a pagar:</strong> $${c.precio_user||''}</p>
+          <p><strong>Fecha límite para subir comprobante:</strong> ${new Date(venceISO).toLocaleString()}</p>
+          <hr/>
+          <p>Ve a <em>Mis reservas</em> y sube tu comprobante para continuar.</p>
+        `
+      });
+    }catch(e){ log('Email usuario falló (se ignora):', e); }
 
-      // seguridad básica
-      if(!c || !c.id){
-        log('Contrato sin ID. No se puede actualizar.');
-        return false;
-      }
+    // Artista: aviso SIN datos de contacto del usuario
+    try{
+      await sendEmail({
+        to: [c.artista_correo].filter(Boolean),
+        subject: `Contrato ${c.ref} aceptado - Esperando comprobante`,
+        html: `
+          <h2>Contrato aceptado</h2>
+          <p><strong>Ref:</strong> ${c.ref}</p>
+          <p><strong>Estado:</strong> pendiente de pago</p>
+          <p><strong>Duración:</strong> ${c.minutos||''} minutos</p>
+          <p><strong>Neto para ti:</strong> $${c.precio_neto_artista||''}</p>
+          <hr/>
+          <p style="color:#777">Los datos de contacto del cliente se liberarán cuando el administrador valide el pago y confirme el contrato.</p>
+        `
+      });
+    }catch(e){ log('Email artista falló (se ignora):', e); }
 
-      const venceISO = new Date(Date.now() + horasLimite*60*60*1000).toISOString();
-      const ok = await actualizarContrato(c, { estado:'pendiente de pago', vence_pago: venceISO });
-
-      if(!ok){
-        log('No se pudo actualizar el contrato en SheetDB (ni con fallback).');
-        return false;
+    log('onArtistAccept OK para', c.ref);
+    return true;
+  }catch(e){
+    log('onArtistAccept ERROR:', e);
+    return false; // nunca lanzamos, para que no dispare alert en la UI
+  }
       }
 
       // emails: no deben romper el flujo si fallan
