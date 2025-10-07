@@ -68,7 +68,7 @@
     .ok{color:var(--ok)}
     .danger{color:var(--danger)}
     .hidden{display:none}
-    dialog{border:1px solid rgba(255,255,255,.12); background:#0c1628; color:#fff;border-radius:16px; padding:16px; width:min(560px, 92vw)}
+    dialog{border:1px solid rgba(255,255,255,.12); background:#0c1628; color:var(--text);border-radius:16px; padding:16px; width:min(520px, 92vw)}
     dialog::backdrop{background:rgba(0,0,0,.5)}
     .chip{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
     @media (max-width:720px){ .grid{grid-template-columns:1fr} }
@@ -198,10 +198,9 @@
       </dialog>
       <button class="btn primary" id="btnAbrirLoginArtista">Ingresar</button>
 
-      <!-- diálogo editar perfil artista -->
-      <dialog id="dlgEditarArtista">
-        <form id="formEditarArtista" method="dialog">
-          <h3>Editar datos del artista</h3>
+      <dialog id="dlgEditArtista">
+        <form method="dialog" id="formEditArtista">
+          <h3>Editar datos de artista</h3>
           <div class="two">
             <input name="nombre_artistico" placeholder="Nombre artístico" required>
             <input name="nombre_real" placeholder="Nombre real" required>
@@ -211,24 +210,22 @@
             <input name="correo" type="email" placeholder="Correo" required>
           </div>
           <div class="two">
-            <input name="celular" placeholder="Celular">
+            <input name="celular" placeholder="Celular" required>
             <select name="tipo_arte" required>
-              <option value="">Tipo de arte</option>
+              <option value="">Tipo…</option>
               <option>Cantante</option><option>Grupo musical</option><option>Bailarín</option>
               <option>Grupo de baile</option><option>Cómico</option><option>Pintor</option>
               <option>Teatro</option><option>DJ</option><option>Presentador de evento</option>
             </select>
           </div>
           <div class="two">
-            <input name="p15" type="number" placeholder="15 min (USD)">
-            <input name="p30" type="number" placeholder="30 min (USD)">
+            <input name="p15" type="number" min="0" placeholder="15m">
+            <input name="p30" type="number" min="0" placeholder="30m">
           </div>
           <div class="two">
-            <input name="p60" type="number" placeholder="60 min (USD)">
-            <input name="p120" type="number" placeholder="120 min (USD)">
+            <input name="p60" type="number" min="0" placeholder="60m">
+            <input name="p120" type="number" min="0" placeholder="120m">
           </div>
-          <input name="foto" placeholder="URL foto">
-          <input name="video" placeholder="URL video (YouTube/Vimeo)">
           <textarea name="bio" rows="3" placeholder="Biografía"></textarea>
           <menu>
             <button value="cancel" class="btn ghost">Cancelar</button>
@@ -254,6 +251,7 @@
       <button class="back" data-back>← Atrás</button>
       <strong>Mis reservas</strong>
     </div>
+
     <div class="wrap">
       <form id="formLookup">
         <div class="two">
@@ -263,6 +261,7 @@
         <input name="contrato" type="text" placeholder="Nº de contrato (opcional)">
         <button class="btn primary">Buscar</button>
       </form>
+
       <div id="lookupResults" style="margin-top:14px"></div>
       <div id="hookMensajesUsuario"></div>
     </div>
@@ -336,28 +335,6 @@
     </form>
   </dialog>
 
-  <!-- DIALOGO CHAT UNIFICADO (para uso futuro si quisieras modal) -->
-  <dialog id="dlgChat">
-    <form method="dialog" id="formChat">
-      <h3 style="margin:0 0 8px">Chat del contrato <span id="dlgChatRef"></span></h3>
-      <div id="chatAudienceRow" style="display:flex; gap:8px; align-items:center; margin-bottom:8px">
-        <label for="chatCanal">Audiencia:</label>
-        <select id="chatCanal"></select>
-        <span id="chatHint" class="note"></span>
-      </div>
-      <div id="chatList" class="note" style="max-height:260px; overflow:auto; background:#0c1628; padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.1)">
-        Cargando…
-      </div>
-      <div style="margin-top:8px">
-        <textarea id="chatText" rows="3" placeholder="Escribe un mensaje…" style="width:100%"></textarea>
-        <div style="display:flex; gap:8px; margin-top:6px">
-          <button id="chatSend" class="btn primary" type="button">Enviar</button>
-          <button class="btn ghost" value="cancel">Cerrar</button>
-        </div>
-      </div>
-    </form>
-  </dialog>
-
   <script>
   // ======================= CONFIG =======================
   const CONFIG = {
@@ -374,23 +351,36 @@
   async function sendEmail({to=[], subject="Banco de Artistas", html=""}){
     try{
       const r = await fetch(GAS_URL, {
-        method:'POST',
-        headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+        method: 'POST',
+        headers: { 'Content-Type':'text/plain;charset=utf-8' }, // evita preflight CORS
         body: JSON.stringify({ action:'sendEmail', to, subject, html })
       });
       return await r.json().catch(()=>({}));
-    }catch(e){ console.warn("Email no enviado (GAS):", e); return {ok:false}; }
+    }catch(e){
+      console.warn("Email no enviado (GAS):", e);
+      return { ok:false };
+    }
   }
 
   // ======================= SUBIR COMPROBANTE A GAS =======================
   async function uploadProofToGAS(file, ref){
     const dataUrl = await new Promise((ok,ko)=>{
-      const fr = new FileReader(); fr.onload=()=>ok(fr.result); fr.onerror=ko; fr.readAsDataURL(file);
+      const fr = new FileReader();
+      fr.onload = ()=> ok(fr.result);
+      fr.onerror = ko;
+      fr.readAsDataURL(file);
     });
+
     const r = await fetch(GAS_URL, {
-      method:'POST',
-      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action:'uploadProof', ref, fileName:file.name, mimeType:file.type||'application/octet-stream', dataUrl })
+      method: 'POST',
+      headers: { 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'uploadProof',
+        ref,
+        fileName: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        dataUrl
+      })
     });
     return await r.json().catch(()=>({}));
   }
@@ -625,13 +615,19 @@
       state.artists.push(artist); renderPeek(); renderExplore();
       const pinBox = qs('#pinResult'); pinBox.classList.remove('hidden');
       pinBox.innerHTML = `<span class="ok">✔</span> Registro recibido. Tu PIN: <strong>${pin}</strong>.<br><span class="muted">También se envió por correo (si está configurado).</span>`;
-      await sendEmail({ to:[artist.correo], subject:'Tu PIN de acceso - Banco de Artistas', html:`<p>Hola ${artist.nombre_artistico},</p><p>Tu PIN es <strong>${pin}</strong>. Úsalo con tu correo para ingresar como artista.</p>` });
+      await sendEmail({
+        to:[artist.correo],
+        subject:'Tu PIN de acceso - Banco de Artistas',
+        html:`<p>Hola ${artist.nombre_artistico},</p><p>Tu PIN es <strong>${pin}</strong>. Úsalo con tu correo para ingresar como artista.</p>`
+      });
       e.target.reset();
     }catch(err){ console.error(err); alert("No se pudo registrar el artista en SheetDB."); }
   });
 
   // ======================= LOGIN ARTISTA & PANEL =======================
   const dlgLoginArtista = qs('#dlgLoginArtista');
+  const dlgEditArtista = qs('#dlgEditArtista');
+
   qs('#btnAbrirLoginArtista').addEventListener('click', ()=> dlgLoginArtista.showModal());
   qs('#formLoginArtista').addEventListener('submit', async (e)=>{
     const fd = new FormData(e.target);
@@ -660,6 +656,54 @@
       </div>
       <div style="margin-top:8px" class="note">PIN: ${a.pin}</div>
       <div style="margin-top:8px"><button class="btn ghost" id="btnEditarArtista">Editar datos</button></div>`;
+
+    // Editar datos
+    qs('#btnEditarArtista').onclick = ()=>{
+      const f = qs('#formEditArtista');
+      f.nombre_artistico.value = a.nombre_artistico||'';
+      f.nombre_real.value = a.nombre_real||'';
+      f.ciudad.value = a.ciudad||'';
+      f.correo.value = a.correo||'';
+      f.celular.value = a.celular||'';
+      f.tipo_arte.value = a.tipo_arte||'';
+      f.p15.value = a.p15||0; f.p30.value = a.p30||0; f.p60.value = a.p60||0; f.p120.value = a.p120||0;
+      f.bio.value = a.bio||'';
+      dlgEditArtista.showModal();
+      f.onsubmit = async (ev)=>{
+        const fd = new FormData(f);
+        try{
+          await API.updateById('artistas', a.id, {
+            nombre_artistico: fd.get('nombre_artistico'),
+            nombre_real: fd.get('nombre_real'),
+            ciudad: fd.get('ciudad'),
+            correo: (fd.get('correo')||'').toLowerCase().trim(),
+            celular: fd.get('celular'),
+            tipo_arte: fd.get('tipo_arte'),
+            p15: Number(fd.get('p15')||0), p30: Number(fd.get('p30')||0),
+            p60: Number(fd.get('p60')||0), p120: Number(fd.get('p120')||0),
+            bio: fd.get('bio')
+          });
+          dlgEditArtista.close();
+          // refrescar cache local
+          const idx = state.artists.findIndex(x=>x.id===a.id);
+          if(idx>=0){
+            state.artists[idx] = normalizeRow({...state.artists[idx],
+              nombre_artistico: fd.get('nombre_artistico'),
+              nombre_real: fd.get('nombre_real'),
+              ciudad: fd.get('ciudad'),
+              correo: (fd.get('correo')||'').toLowerCase().trim(),
+              celular: fd.get('celular'),
+              tipo_arte: fd.get('tipo_arte'),
+              p15: Number(fd.get('p15')||0), p30: Number(fd.get('p30')||0),
+              p60: Number(fd.get('p60')||0), p120: Number(fd.get('p120')||0),
+              bio: fd.get('bio')
+            });
+          }
+          renderPanelArtista(); renderExplore(); renderPeek();
+        }catch(e){ ev.preventDefault(); alert('No se pudo guardar.'); }
+      };
+    };
+
     const cont = qs('#artistContracts'); cont.innerHTML="";
     const my = state.contracts.filter(c=>String(c.artista_id)===String(id));
     if(my.length===0){ cont.innerHTML='<div class="note">No hay contratos aún.</div>'; return; }
@@ -670,7 +714,7 @@
         <div class="muted">Show: ${c.minutos} min • Tu neto: $${c.precio_neto_artista}</div>
         <div class="note">Evento: ${(c.fecha||'') } ${ (c.hora||'') }</div>
         <div class="note">Lugar: ${c.usuario_ciudad||''} • ${c.usuario_barrio||''} • ${c.usuario_calles||''} • ${c.usuario_referencias||''}</div>
-        <div class="note">Cliente: ${c.usuario_nombres}</div>
+        <div class="note">El contacto del cliente se liberará cuando el admin confirme.</div>
         <div class="peek" style="margin-top:8px">
           <button class="btn primary" data-accion="aceptar">Aceptar</button>
           <button class="btn ghost" data-accion="rechazar">Rechazar</button>
@@ -683,19 +727,8 @@
           try{
             if(act==='aceptar'){
               if(c.estado==='por confirmar artista'){
-                if (window.BA_PATCH?.onArtistAccept) { await BA_PATCH.onArtistAccept(c, 24); }
-                else {
-                  const venceISO = new Date(Date.now()+24*60*60*1000).toISOString();
-                  await API.updateById('contratos', c.id, { estado:'pendiente de pago', vence_pago:venceISO });
-                  await sendEmail({
-                    to:[c.usuario_correo],
-                    subject:`Contrato ${c.ref}: pendiente de pago`,
-                    html:`<h2>Tu contrato fue aceptado</h2>
-                          <p>Ref: ${c.ref}</p><p>Total a pagar: $${c.precio_user}</p>
-                          <p>Fecha límite para subir comprobante: ${new Date(venceISO).toLocaleString()}</p>`
-                  });
-                  await sendEmail({ to:[c.artista_correo], subject:`Contrato ${c.ref} aceptado - Esperando comprobante`, html:`<p>Contrato aceptado. Queda en <strong>pendiente de pago</strong>.</p>` });
-                }
+                const ok = await BA_PATCH.onArtistAccept(c, 24);
+                if(!ok){ console.warn('onArtistAccept devolvió false'); }
                 await reloadContracts(); renderPanelArtista(); renderAdmin();
               } else { alert('Este contrato no está en estado "por confirmar artista".'); }
             }else if(act==='rechazar'){
@@ -705,50 +738,11 @@
               if (hookA){ hookA.innerHTML = ''; await renderChat(hookA, c, 'artista'); hookA.scrollIntoView({behavior:'smooth'}); }
               else { alert("No se encontró el área de mensajes."); }
             }
-          }catch(err){ console.error(err); alert("Error al actualizar contrato."); }
+          }catch(err){ alert("Error al actualizar contrato."); }
         });
       });
       cont.appendChild(div);
     });
-
-    // editar perfil
-    qs('#btnEditarArtista').onclick = async ()=>{
-      const a2 = a; // snapshot
-      const f = qs('#formEditarArtista');
-      f.nombre_artistico.value = a2.nombre_artistico||'';
-      f.nombre_real.value = a2.nombre_real||'';
-      f.ciudad.value = a2.ciudad||'';
-      f.correo.value = a2.correo||'';
-      f.celular.value = a2.celular||'';
-      f.tipo_arte.value = a2.tipo_arte||'';
-      f.p15.value = a2.p15||'';
-      f.p30.value = a2.p30||'';
-      f.p60.value = a2.p60||'';
-      f.p120.value = a2.p120||'';
-      f.foto.value = a2.foto||'';
-      f.video.value = a2.video||'';
-      f.bio.value = a2.bio||'';
-      qs('#dlgEditarArtista').showModal();
-
-      f.onsubmit = async (ev)=>{
-        // si pulsó Guardar, el dialog se cerrará con value="ok"
-        const fd=new FormData(f);
-        const data={
-          nombre_artistico:fd.get('nombre_artistico'), nombre_real:fd.get('nombre_real'),
-          ciudad:fd.get('ciudad'), correo:(fd.get('correo')||'').toLowerCase().trim(), celular:fd.get('celular'),
-          tipo_arte:fd.get('tipo_arte'),
-          p15:Number(fd.get('p15')||0), p30:Number(fd.get('p30')||0), p60:Number(fd.get('p60')||0), p120:Number(fd.get('p120')||0),
-          foto:fd.get('foto'), video:fd.get('video'), bio:fd.get('bio')
-        };
-        try{
-          await API.updateById('artistas', a2.id, data);
-          // refresca cache local
-          const idx = state.artists.findIndex(x=>x.id===a2.id);
-          if(idx>-1) state.artists[idx] = normalizeRow({...a2, ...data});
-          renderPanelArtista(); renderExplore(); renderPeek();
-        }catch(e){ console.error(e); alert('No se pudo guardar cambios.'); }
-      };
-    };
   }
 
   // ======================= MIS RESERVAS =======================
@@ -784,13 +778,16 @@
           try{
             if(act==='subir'){
               const inp = document.createElement('input');
-              inp.type = 'file'; inp.accept = 'image/*,application/pdf';
+              inp.type = 'file';
+              inp.accept = 'image/*,application/pdf';
               inp.onchange = async () => {
-                const file = inp.files && inp.files[0]; if(!file) return;
+                const file = inp.files && inp.files[0];
+                if(!file) return;
                 try{
                   const jj = await uploadProofToGAS(file, c.ref);
                   if(!jj || !jj.ok || !jj.url){ alert('No se pudo subir el comprobante.'); return; }
                   await API.updateById('contratos', c.id, { comprobante_url: jj.url, estado: 'pago en revisión' });
+
                   await sendEmail({
                     to:[c.artista_correo],
                     subject:`Comprobante recibido - ${c.ref}`,
@@ -798,6 +795,7 @@
                           <p>Estado: <strong>pago en revisión</strong>.</p>
                           <p>Comprobante: <a href="${jj.url}">${jj.url}</a></p>`
                   });
+
                   alert('Comprobante subido. Estado: pago en revisión.');
                   renderAdmin && renderAdmin();
                 }catch(e){ console.error(e); alert('Error subiendo comprobante.'); }
@@ -869,45 +867,43 @@
         </div>
       `;
 
-      // Si tu ba-patch añade el link del comprobante, lo dejamos
-      if (window.BA_PATCH?.augmentAdminCard) BA_PATCH.augmentAdminCard(div, c);
-
       div.querySelectorAll('button[data-accion]').forEach(b=>{
         b.addEventListener('click', async ()=>{
           const act = b.getAttribute('data-accion');
           try{
+            if(act==='a_validar') c.estado='por validar pago';
+            else if(act==='confirmar') c.estado='confirmado';
+            else if(act==='rechazar') c.estado='rechazado';
+
             if(act==='mensaje'){
               const t = prompt("Mensaje interno del admin (visible para las tres partes)"); if(!t) return;
               await API.create('mensajes', {contrato_ref:c.ref, de:'admin', texto:t, ts:new Date().toISOString()});
               alert("Mensaje enviado."); return;
             }
 
-            if(act==='a_validar')      c.estado='por validar pago';
-            else if(act==='confirmar') c.estado='confirmado';
-            else if(act==='rechazar')  c.estado='rechazado';
-
             await API.updateById('contratos', c.id, {estado:c.estado});
 
-            // En confirmación: revelar contactos a AMBAS partes por correo
             if(act==='confirmar'){
-              const correoUser = `
-                <h2>Contrato confirmado ✔</h2>
-                <p>Ref: <strong>${c.ref}</strong></p>
-                <p><strong>Artista:</strong> ${c.artista_nombre}</p>
-                <p><strong>Contacto del artista:</strong> ${c.artista_correo} ${c.artista_celular?('• '+c.artista_celular):''}</p>
-                <p>¡Gracias por usar Banco de Artistas!</p>`;
-              const correoArtist = `
-                <h2>Contrato confirmado ✔</h2>
-                <p>Ref: <strong>${c.ref}</strong></p>
-                <p><strong>Cliente:</strong> ${c.usuario_nombres}</p>
-                <p><strong>Contacto del cliente:</strong> ${c.usuario_correo||''} ${c.usuario_celular?('• '+c.usuario_celular):''}</p>
-                <p>¡Nos vemos en el show!</p>`;
-              await sendEmail({ to:[c.usuario_correo], subject:`Contrato ${c.ref} confirmado ✔`, html:correoUser });
-              await sendEmail({ to:[c.artista_correo], subject:`Contrato ${c.ref} confirmado ✔`, html:correoArtist });
+              // Contactos se revelan AQUÍ a ambas partes
+              await sendEmail({
+                to:[c.usuario_correo],
+                subject:`Contrato ${c.ref} confirmado ✔`,
+                html:`<h2>¡Confirmado!</h2>
+                      <p><strong>Ref:</strong> ${c.ref}</p>
+                      <p><strong>Artista:</strong> ${c.artista_nombre}</p>
+                      <p><strong>Contacta al artista:</strong> ${c.artista_correo}</p>`
+              });
+              await sendEmail({
+                to:[c.artista_correo],
+                subject:`Contrato ${c.ref} confirmado ✔`,
+                html:`<h2>¡Confirmado!</h2>
+                      <p><strong>Ref:</strong> ${c.ref}</p>
+                      <p><strong>Cliente:</strong> ${c.usuario_nombres}</p>
+                      <p><strong>Contacto del cliente:</strong> ${c.usuario_correo} • ${c.usuario_celular}</p>`
+              });
             }
-
             renderAdmin();
-          }catch(err){ console.error(err); alert("Error al actualizar contrato."); }
+          }catch(err){ alert("Error al actualizar contrato."); }
         });
       });
       list.appendChild(div);
@@ -984,7 +980,7 @@
   }
   </script>
 
-  <!-- Parche BA (onArtistAccept + augmentAdminCard) si existe -->
-  <script src="patches/patches/ba-patch.js"></script>
+  <!-- Parche BA (onArtistAccept + augmentAdminCard). Usa ?v=2 para evitar caché -->
+  <script src="patches/patches/ba-patch.js?v=2"></script>
 </body>
 </html>
