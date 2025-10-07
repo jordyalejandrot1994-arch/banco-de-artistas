@@ -68,7 +68,7 @@
     .ok{color:var(--ok)}
     .danger{color:var(--danger)}
     .hidden{display:none}
-    dialog{border:1px solid rgba(255,255,255,.12); background:#0c1628; color:#fff;border-radius:16px; padding:16px; width:min(520px, 92vw)}
+    dialog{border:1px solid rgba(255,255,255,.12); background:#0c1628; color:#fff;border-radius:16px; padding:16px; width:min(560px, 92vw)}
     dialog::backdrop{background:rgba(0,0,0,.5)}
     .chip{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
     @media (max-width:720px){ .grid{grid-template-columns:1fr} }
@@ -197,14 +197,52 @@
         </form>
       </dialog>
       <button class="btn primary" id="btnAbrirLoginArtista">Ingresar</button>
+
+      <!-- diálogo editar perfil artista -->
+      <dialog id="dlgEditarArtista">
+        <form id="formEditarArtista" method="dialog">
+          <h3>Editar datos del artista</h3>
+          <div class="two">
+            <input name="nombre_artistico" placeholder="Nombre artístico" required>
+            <input name="nombre_real" placeholder="Nombre real" required>
+          </div>
+          <div class="two">
+            <input name="ciudad" placeholder="Ciudad" required>
+            <input name="correo" type="email" placeholder="Correo" required>
+          </div>
+          <div class="two">
+            <input name="celular" placeholder="Celular">
+            <select name="tipo_arte" required>
+              <option value="">Tipo de arte</option>
+              <option>Cantante</option><option>Grupo musical</option><option>Bailarín</option>
+              <option>Grupo de baile</option><option>Cómico</option><option>Pintor</option>
+              <option>Teatro</option><option>DJ</option><option>Presentador de evento</option>
+            </select>
+          </div>
+          <div class="two">
+            <input name="p15" type="number" placeholder="15 min (USD)">
+            <input name="p30" type="number" placeholder="30 min (USD)">
+          </div>
+          <div class="two">
+            <input name="p60" type="number" placeholder="60 min (USD)">
+            <input name="p120" type="number" placeholder="120 min (USD)">
+          </div>
+          <input name="foto" placeholder="URL foto">
+          <input name="video" placeholder="URL video (YouTube/Vimeo)">
+          <textarea name="bio" rows="3" placeholder="Biografía"></textarea>
+          <menu>
+            <button value="cancel" class="btn ghost">Cancelar</button>
+            <button value="ok" class="btn primary">Guardar</button>
+          </menu>
+        </form>
+      </dialog>
+
       <div id="panelArtista" class="hidden">
         <h3>Tu panel</h3>
         <div class="note warn">“Banco de Artistas podrá aplicar ajustes de servicio sobre los precios publicados para cubrir costos de gestión y operación.”</div>
         <div id="artistInfo" class="card" style="margin-top:12px"></div>
         <h4 class="section-title">Contratos</h4>
         <div id="artistContracts"></div>
-
-        <!-- HOOK: mensajes para el artista -->
         <div id="hookMensajesArtista" style="margin-top:12px"></div>
       </div>
     </div>
@@ -216,7 +254,6 @@
       <button class="back" data-back>← Atrás</button>
       <strong>Mis reservas</strong>
     </div>
-
     <div class="wrap">
       <form id="formLookup">
         <div class="two">
@@ -226,10 +263,7 @@
         <input name="contrato" type="text" placeholder="Nº de contrato (opcional)">
         <button class="btn primary">Buscar</button>
       </form>
-
       <div id="lookupResults" style="margin-top:14px"></div>
-
-      <!-- HOOK: uploader de pago + mensajes -->
       <div id="hookMensajesUsuario"></div>
     </div>
   </section>
@@ -302,21 +336,18 @@
     </form>
   </dialog>
 
-  <!-- DIALOGO CHAT UNIFICADO (modal) -->
+  <!-- DIALOGO CHAT UNIFICADO (para uso futuro si quisieras modal) -->
   <dialog id="dlgChat">
     <form method="dialog" id="formChat">
       <h3 style="margin:0 0 8px">Chat del contrato <span id="dlgChatRef"></span></h3>
-
       <div id="chatAudienceRow" style="display:flex; gap:8px; align-items:center; margin-bottom:8px">
         <label for="chatCanal">Audiencia:</label>
         <select id="chatCanal"></select>
         <span id="chatHint" class="note"></span>
       </div>
-
       <div id="chatList" class="note" style="max-height:260px; overflow:auto; background:#0c1628; padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.1)">
         Cargando…
       </div>
-
       <div style="margin-top:8px">
         <textarea id="chatText" rows="3" placeholder="Escribe un mensaje…" style="width:100%"></textarea>
         <div style="display:flex; gap:8px; margin-top:6px">
@@ -337,43 +368,29 @@
   };
 
   // ======================= GAS WEBAPP =======================
-  // Reemplaza por tu URL /exec si cambia la implementación
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbyWnV2a97GHuRJS0_ptd2VBrdfADZJWWp1HjkgOfg4Ol-VuX2k36ZFJWO_M0Fbrp_Fx/exec';
 
   // ======================= EMAIL (GAS, CORS-proof) =======================
   async function sendEmail({to=[], subject="Banco de Artistas", html=""}){
     try{
       const r = await fetch(GAS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type':'text/plain;charset=utf-8' }, // evita preflight CORS
+        method:'POST',
+        headers:{ 'Content-Type':'text/plain;charset=utf-8' },
         body: JSON.stringify({ action:'sendEmail', to, subject, html })
       });
       return await r.json().catch(()=>({}));
-    }catch(e){
-      console.warn("Email no enviado (GAS):", e);
-      return { ok:false };
-    }
+    }catch(e){ console.warn("Email no enviado (GAS):", e); return {ok:false}; }
   }
 
   // ======================= SUBIR COMPROBANTE A GAS =======================
   async function uploadProofToGAS(file, ref){
     const dataUrl = await new Promise((ok,ko)=>{
-      const fr = new FileReader();
-      fr.onload = ()=> ok(fr.result);
-      fr.onerror = ko;
-      fr.readAsDataURL(file);
+      const fr = new FileReader(); fr.onload=()=>ok(fr.result); fr.onerror=ko; fr.readAsDataURL(file);
     });
-
     const r = await fetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type':'text/plain;charset=utf-8' }, // evita preflight CORS
-      body: JSON.stringify({
-        action: 'uploadProof',
-        ref,
-        fileName: file.name,
-        mimeType: file.type || 'application/octet-stream',
-        dataUrl
-      })
+      method:'POST',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action:'uploadProof', ref, fileName:file.name, mimeType:file.type||'application/octet-stream', dataUrl })
     });
     return await r.json().catch(()=>({}));
   }
@@ -559,7 +576,7 @@
     try{
       await API.create('contratos', contrato);
 
-      // -------- Correo inicial al ARTISTA (sin contacto del usuario)
+      // -------- Correo inicial al ARTISTA (sin contacto del usuario) --------
       await sendEmail({
         to:[artistaActual.correo],
         subject:`Nuevo contrato recibido: ${ref}`,
@@ -577,7 +594,7 @@
           <p><strong>Calles:</strong> ${fd.get('calles')}</p>
           <p><strong>Referencias:</strong> ${fd.get('referencias')}</p>
           <hr>
-          <p style="color:#777">Los datos de contacto del cliente (correo/teléfono) se liberarán cuando el administrador confirme el pago.</p>
+          <p style="color:#777">Los datos de contacto del cliente (correo/teléfono) se liberarán una vez que el administrador valide el pago y confirme el contrato.</p>
         `
       });
 
@@ -593,7 +610,7 @@
     const pin = (Math.floor(Math.random()*900000)+100000).toString();
     const artist = {
       id: uid('A'),
-      aprobado:true,              // auto-aprobado (puede cambiar en Admin)
+      aprobado:true,
       rating:0, votos:0,
       foto:fd.get('foto'), video:fd.get('video'),
       nombre_artistico:fd.get('nombre_artistico'), nombre_real:fd.get('nombre_real'),
@@ -608,12 +625,7 @@
       state.artists.push(artist); renderPeek(); renderExplore();
       const pinBox = qs('#pinResult'); pinBox.classList.remove('hidden');
       pinBox.innerHTML = `<span class="ok">✔</span> Registro recibido. Tu PIN: <strong>${pin}</strong>.<br><span class="muted">También se envió por correo (si está configurado).</span>`;
-      // Email PIN
-      await sendEmail({
-        to:[artist.correo],
-        subject:'Tu PIN de acceso - Banco de Artistas',
-        html:`<p>Hola ${artist.nombre_artistico},</p><p>Tu PIN es <strong>${pin}</strong>. Úsalo con tu correo para ingresar como artista.</p>`
-      });
+      await sendEmail({ to:[artist.correo], subject:'Tu PIN de acceso - Banco de Artistas', html:`<p>Hola ${artist.nombre_artistico},</p><p>Tu PIN es <strong>${pin}</strong>. Úsalo con tu correo para ingresar como artista.</p>` });
       e.target.reset();
     }catch(err){ console.error(err); alert("No se pudo registrar el artista en SheetDB."); }
   });
@@ -652,17 +664,13 @@
     const my = state.contracts.filter(c=>String(c.artista_id)===String(id));
     if(my.length===0){ cont.innerHTML='<div class="note">No hay contratos aún.</div>'; return; }
     my.forEach(c=>{
-      const visible = c.estado==='confirmado';
       const div=document.createElement('div'); div.className='card';
       div.innerHTML = `
         <div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
         <div class="muted">Show: ${c.minutos} min • Tu neto: $${c.precio_neto_artista}</div>
         <div class="note">Evento: ${(c.fecha||'') } ${ (c.hora||'') }</div>
         <div class="note">Lugar: ${c.usuario_ciudad||''} • ${c.usuario_barrio||''} • ${c.usuario_calles||''} • ${c.usuario_referencias||''}</div>
-        <div class="note">
-          ${visible ? (`Contacto cliente: ${c.usuario_correo || ''} ${c.usuario_celular ? '• '+c.usuario_celular : ''}`)
-                    : ('El contacto del cliente se liberará cuando el admin confirme.')}
-        </div>
+        <div class="note">Cliente: ${c.usuario_nombres}</div>
         <div class="peek" style="margin-top:8px">
           <button class="btn primary" data-accion="aceptar">Aceptar</button>
           <button class="btn ghost" data-accion="rechazar">Rechazar</button>
@@ -675,19 +683,72 @@
           try{
             if(act==='aceptar'){
               if(c.estado==='por confirmar artista'){
-                await BA_PATCH.onArtistAccept(c, 24);
+                if (window.BA_PATCH?.onArtistAccept) { await BA_PATCH.onArtistAccept(c, 24); }
+                else {
+                  const venceISO = new Date(Date.now()+24*60*60*1000).toISOString();
+                  await API.updateById('contratos', c.id, { estado:'pendiente de pago', vence_pago:venceISO });
+                  await sendEmail({
+                    to:[c.usuario_correo],
+                    subject:`Contrato ${c.ref}: pendiente de pago`,
+                    html:`<h2>Tu contrato fue aceptado</h2>
+                          <p>Ref: ${c.ref}</p><p>Total a pagar: $${c.precio_user}</p>
+                          <p>Fecha límite para subir comprobante: ${new Date(venceISO).toLocaleString()}</p>`
+                  });
+                  await sendEmail({ to:[c.artista_correo], subject:`Contrato ${c.ref} aceptado - Esperando comprobante`, html:`<p>Contrato aceptado. Queda en <strong>pendiente de pago</strong>.</p>` });
+                }
                 await reloadContracts(); renderPanelArtista(); renderAdmin();
               } else { alert('Este contrato no está en estado "por confirmar artista".'); }
             }else if(act==='rechazar'){
               c.estado='rechazado'; await API.updateById('contratos', c.id, {estado:c.estado}); await reloadContracts(); renderPanelArtista(); renderAdmin();
             }else if(act==='mensaje'){
-              openChatDialog(c,'artista');
+              const hookA = document.getElementById('hookMensajesArtista');
+              if (hookA){ hookA.innerHTML = ''; await renderChat(hookA, c, 'artista'); hookA.scrollIntoView({behavior:'smooth'}); }
+              else { alert("No se encontró el área de mensajes."); }
             }
-          }catch(err){ alert("Error al actualizar contrato."); }
+          }catch(err){ console.error(err); alert("Error al actualizar contrato."); }
         });
       });
       cont.appendChild(div);
     });
+
+    // editar perfil
+    qs('#btnEditarArtista').onclick = async ()=>{
+      const a2 = a; // snapshot
+      const f = qs('#formEditarArtista');
+      f.nombre_artistico.value = a2.nombre_artistico||'';
+      f.nombre_real.value = a2.nombre_real||'';
+      f.ciudad.value = a2.ciudad||'';
+      f.correo.value = a2.correo||'';
+      f.celular.value = a2.celular||'';
+      f.tipo_arte.value = a2.tipo_arte||'';
+      f.p15.value = a2.p15||'';
+      f.p30.value = a2.p30||'';
+      f.p60.value = a2.p60||'';
+      f.p120.value = a2.p120||'';
+      f.foto.value = a2.foto||'';
+      f.video.value = a2.video||'';
+      f.bio.value = a2.bio||'';
+      qs('#dlgEditarArtista').showModal();
+
+      f.onsubmit = async (ev)=>{
+        // si pulsó Guardar, el dialog se cerrará con value="ok"
+        const fd=new FormData(f);
+        const data={
+          nombre_artistico:fd.get('nombre_artistico'), nombre_real:fd.get('nombre_real'),
+          ciudad:fd.get('ciudad'), correo:(fd.get('correo')||'').toLowerCase().trim(), celular:fd.get('celular'),
+          tipo_arte:fd.get('tipo_arte'),
+          p15:Number(fd.get('p15')||0), p30:Number(fd.get('p30')||0), p60:Number(fd.get('p60')||0), p120:Number(fd.get('p120')||0),
+          foto:fd.get('foto'), video:fd.get('video'), bio:fd.get('bio')
+        };
+        try{
+          await API.updateById('artistas', a2.id, data);
+          // refresca cache local
+          const idx = state.artists.findIndex(x=>x.id===a2.id);
+          if(idx>-1) state.artists[idx] = normalizeRow({...a2, ...data});
+          renderPanelArtista(); renderExplore(); renderPeek();
+        }catch(e){ console.error(e); alert('No se pudo guardar cambios.'); }
+      };
+    };
   }
 
   // ======================= MIS RESERVAS =======================
@@ -707,16 +768,11 @@
     const box = qs('#lookupResults'); box.innerHTML="";
     if(!res.length){ box.innerHTML='<div class="note">No se encontraron contratos.</div>'; return; }
     res.forEach(c=>{
-      const visible = c.estado==='confirmado';
       const div=document.createElement('div'); div.className='card';
       div.innerHTML = `
         <div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
         <div class="note">Artista: ${c.artista_nombre}</div>
         <div class="note">Fecha: ${new Date(c.fecha_creacion).toLocaleDateString()}</div>
-        <div class="note">
-          ${visible ? (`Contacto artista: ${c.artista_correo || ''} ${ (state.artists.find(a=>a.id===c.artista_id)?.celular || '') ? '• '+(state.artists.find(a=>a.id===c.artista_id)?.celular || '') : ''}`)
-                    : ('El contacto del artista se liberará cuando el admin confirme.')}
-        </div>
         <div class="peek" style="margin-top:8px">
           ${ (c.estado==='pendiente de pago' || c.estado==='por validar pago' || c.estado==='pago en revisión') ? '<button class="btn primary" data-accion="subir">Subir comprobante</button>' : '' }
           <button class="btn ghost" data-accion="mensaje">Mensaje</button>
@@ -728,32 +784,29 @@
           try{
             if(act==='subir'){
               const inp = document.createElement('input');
-              inp.type = 'file';
-              inp.accept = 'image/*,application/pdf';
+              inp.type = 'file'; inp.accept = 'image/*,application/pdf';
               inp.onchange = async () => {
-                const file = inp.files && inp.files[0];
-                if(!file) return;
+                const file = inp.files && inp.files[0]; if(!file) return;
                 try{
                   const jj = await uploadProofToGAS(file, c.ref);
                   if(!jj || !jj.ok || !jj.url){ alert('No se pudo subir el comprobante.'); return; }
                   await API.updateById('contratos', c.id, { comprobante_url: jj.url, estado: 'pago en revisión' });
-
                   await sendEmail({
                     to:[c.artista_correo],
                     subject:`Comprobante recibido - ${c.ref}`,
                     html:`<p>El usuario subió un comprobante para el contrato <strong>${c.ref}</strong>.</p>
                           <p>Estado: <strong>pago en revisión</strong>.</p>
-                          <p>Comprobante: <a href="${jj.url}">${jj.url}</a></p>
-                          <p style="color:#777">El contacto del cliente se revelará cuando el administrador confirme el pago.</p>`
+                          <p>Comprobante: <a href="${jj.url}">${jj.url}</a></p>`
                   });
-
                   alert('Comprobante subido. Estado: pago en revisión.');
                   renderAdmin && renderAdmin();
                 }catch(e){ console.error(e); alert('Error subiendo comprobante.'); }
               };
               inp.click();
             } else if(act==='mensaje'){
-              openChatDialog(c,'usuario');
+              const hookU = document.getElementById('hookMensajesUsuario');
+              if (hookU){ hookU.innerHTML = ''; await renderChat(hookU, c, 'usuario'); hookU.scrollIntoView({behavior:'smooth'}); }
+              else { alert("No se encontró el área de mensajes."); }
             }
           }catch(err){ console.error(err); alert("Error en la acción."); }
         });
@@ -816,75 +869,75 @@
         </div>
       `;
 
-      // Añade link de comprobante + botón Chat (admin)
-      BA_PATCH.augmentAdminCard(div, c);
+      // Si tu ba-patch añade el link del comprobante, lo dejamos
+      if (window.BA_PATCH?.augmentAdminCard) BA_PATCH.augmentAdminCard(div, c);
 
       div.querySelectorAll('button[data-accion]').forEach(b=>{
         b.addEventListener('click', async ()=>{
           const act = b.getAttribute('data-accion');
           try{
-            if(act==='a_validar') c.estado='por validar pago';
-            else if(act==='confirmar') c.estado='confirmado';
-            else if(act==='rechazar') c.estado='rechazado';
-
             if(act==='mensaje'){
-              openChatDialog(c,'admin');
-              return;
+              const t = prompt("Mensaje interno del admin (visible para las tres partes)"); if(!t) return;
+              await API.create('mensajes', {contrato_ref:c.ref, de:'admin', texto:t, ts:new Date().toISOString()});
+              alert("Mensaje enviado."); return;
             }
+
+            if(act==='a_validar')      c.estado='por validar pago';
+            else if(act==='confirmar') c.estado='confirmado';
+            else if(act==='rechazar')  c.estado='rechazado';
 
             await API.updateById('contratos', c.id, {estado:c.estado});
 
-            // Al confirmar: revela contactos y envía a ambos
+            // En confirmación: revelar contactos a AMBAS partes por correo
             if(act==='confirmar'){
-              await sendEmail({
-                to:[c.usuario_correo],
-                subject:`Contrato ${c.ref} confirmado ✔`,
-                html:`<h2>¡Confirmado!</h2>
-                      <p><strong>Artista:</strong> ${c.artista_nombre}</p>
-                      <p><strong>Contacto del artista:</strong> ${c.artista_correo} ${ (state.artists.find(a=>a.id===c.artista_id)?.celular||'') ? '• '+(state.artists.find(a=>a.id===c.artista_id)?.celular||'') : ''}</p>
-                      <p><strong>Nos vemos el día del evento.</strong></p>`
-              });
-              await sendEmail({
-                to:[c.artista_correo],
-                subject:`Contrato ${c.ref} confirmado ✔`,
-                html:`<h2>¡Confirmado!</h2>
-                      <p><strong>Cliente:</strong> ${c.usuario_nombres}</p>
-                      <p><strong>Contacto del cliente:</strong> ${c.usuario_correo || ''} ${c.usuario_celular? '• '+c.usuario_celular : ''}</p>
-                      <p><strong>Detalles del evento:</strong> ${c.fecha||''} ${c.hora||''} • ${c.usuario_ciudad||''}, ${c.usuario_barrio||''}, ${c.usuario_calles||''}, ${c.usuario_referencias||''}</p>`
-              });
+              const correoUser = `
+                <h2>Contrato confirmado ✔</h2>
+                <p>Ref: <strong>${c.ref}</strong></p>
+                <p><strong>Artista:</strong> ${c.artista_nombre}</p>
+                <p><strong>Contacto del artista:</strong> ${c.artista_correo} ${c.artista_celular?('• '+c.artista_celular):''}</p>
+                <p>¡Gracias por usar Banco de Artistas!</p>`;
+              const correoArtist = `
+                <h2>Contrato confirmado ✔</h2>
+                <p>Ref: <strong>${c.ref}</strong></p>
+                <p><strong>Cliente:</strong> ${c.usuario_nombres}</p>
+                <p><strong>Contacto del cliente:</strong> ${c.usuario_correo||''} ${c.usuario_celular?('• '+c.usuario_celular):''}</p>
+                <p>¡Nos vemos en el show!</p>`;
+              await sendEmail({ to:[c.usuario_correo], subject:`Contrato ${c.ref} confirmado ✔`, html:correoUser });
+              await sendEmail({ to:[c.artista_correo], subject:`Contrato ${c.ref} confirmado ✔`, html:correoArtist });
             }
+
             renderAdmin();
-          }catch(err){ alert("Error al actualizar contrato."); }
+          }catch(err){ console.error(err); alert("Error al actualizar contrato."); }
         });
       });
       list.appendChild(div);
     });
   }
 
-  // ======================= CHAT (modal) =======================
-  async function openChatDialog(contrato, role){
-    const dlg = document.getElementById('dlgChat');
-    const refEl = document.getElementById('dlgChatRef');
-    const listEl = document.getElementById('chatList');
-    const textEl = document.getElementById('chatText');
-    const sendBtn = document.getElementById('chatSend');
-    const hintEl = document.getElementById('chatHint');
-    const canalSel = document.getElementById('chatCanal');
+  // ======================= CHAT UNIFICADO =======================
+  async function renderChat(container, contrato, role){
+    container.innerHTML = `
+      <div class="card">
+        <div class="row"><strong>Mensajes</strong><span class="badge">${contrato.ref}</span></div>
+        <div id="chatList" class="note" style="max-height:220px;overflow:auto;margin-top:8px">Cargando…</div>
+        <div id="chatForm" style="margin-top:8px">
+          <textarea id="chatText" rows="2" placeholder="Escribe un mensaje…"></textarea>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <button id="chatSend" class="btn primary">Enviar</button>
+            <span id="chatHint" class="note"></span>
+          </div>
+        </div>
+      </div>
+    `;
 
-    refEl.textContent = contrato.ref;
+    const listEl = container.querySelector('#chatList');
+    const sendBtn = container.querySelector('#chatSend');
+    const textEl = container.querySelector('#chatText');
+    const hintEl = container.querySelector('#chatHint');
 
-    // Canales: admin-usuario, admin-artista, usuario-artista (este último solo si confirmado)
-    canalSel.innerHTML = '';
-    const addOpt = (v, t)=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; canalSel.appendChild(o); };
-    addOpt('admin-usuario','Admin ←→ Usuario');
-    addOpt('admin-artista','Admin ←→ Artista');
-    if(contrato.estado==='confirmado') addOpt('usuario-artista','Usuario ←→ Artista');
-
-    // Permisos de envío:
     const canSend = (role==='admin') || (role==='usuario') || (role==='artista' && contrato.estado==='confirmado');
-    textEl.disabled = !canSend;
-    sendBtn.disabled = !canSend;
-    hintEl.textContent = canSend ? '' : 'El artista podrá escribir cuando el contrato esté confirmado.';
+    if(!canSend){ sendBtn.disabled = true; textEl.disabled = true; hintEl.textContent = 'El artista podrá escribir cuando el contrato esté confirmado.'; }
+    else { hintEl.textContent = ''; }
 
     async function load(){
       try{
@@ -904,127 +957,34 @@
       }
     }
 
-    sendBtn.onclick = async ()=>{
+    sendBtn.addEventListener('click', async ()=>{
       const t = (textEl.value||'').trim();
-      if(!t || !canSend) return;
-      await API.create('mensajes', {
-        id: uid('M'),
-        contrato_ref: contrato.ref,
-        de: role,
-        canal: canalSel.value, // opcional
-        texto: t,
-        ts: new Date().toISOString()
-      });
-      textEl.value = '';
-      await load();
-    };
+      if(!t) return;
+      if(!canSend){ return; }
+      try{
+        await API.create('mensajes', {
+          id: uid('M'),
+          contrato_ref: contrato.ref,
+          de: role,
+          texto: t,
+          ts: new Date().toISOString()
+        });
+        textEl.value = '';
+        await load();
+      }catch(e){ alert('No se pudo enviar el mensaje.'); }
+    });
 
     await load();
-    dlg.showModal();
   }
-
-  // ======================= PATCH SEGURO (inline) =======================
-  (function(global){
-    const API = global.API;
-    const sendEmail = global.sendEmail;
-
-    const BA_PATCH = {
-      async onArtistAccept(contrato, graceHours=24){
-        try{
-          await API.updateById('contratos', contrato.id, { estado: 'pendiente de pago' });
-          const venc = new Date(Date.now() + graceHours*60*60*1000).toLocaleString();
-
-          // Mail USUARIO (sin contacto del artista)
-          await sendEmail({
-            to: [ contrato.usuario_correo ],
-            subject: `Contrato ${contrato.ref}: pendiente de pago`,
-            html: `
-              <h2>Tu contrato está pendiente de pago</h2>
-              <p><strong>Ref:</strong> ${contrato.ref}</p>
-              <p><strong>Artista:</strong> ${contrato.artista_nombre}</p>
-              <p><strong>Total a pagar:</strong> $${contrato.precio_user}</p>
-              <p>Sube tu comprobante en la app antes de: <strong>${venc}</strong>.</p>
-              <p style="color:#777">El contacto del artista se revelará cuando el administrador confirme el pago.</p>
-            `
-          });
-
-          // Mail ARTISTA (sin contacto del usuario)
-          await sendEmail({
-            to: [ contrato.artista_correo ],
-            subject: `Contrato ${contrato.ref}: pendiente de pago`,
-            html: `
-              <h2>Contrato en espera de pago</h2>
-              <p><strong>Ref:</strong> ${contrato.ref}</p>
-              <p><strong>Show:</strong> ${contrato.minutos} minutos</p>
-              <p><strong>Neto para ti:</strong> $${contrato.precio_neto_artista}</p>
-              <hr>
-              <p><strong>Evento:</strong> ${contrato.fecha || ''} ${contrato.hora || ''}</p>
-              <p><strong>Ubicación:</strong> ${contrato.usuario_ciudad||''} • ${contrato.usuario_barrio||''} • ${contrato.usuario_calles||''} • ${contrato.usuario_referencias||''}</p>
-              <p style="color:#777">El contacto del cliente se revelará cuando el administrador confirme el pago.</p>
-            `
-          });
-
-          return { ok:true };
-        }catch(e){
-          console.error('BA_PATCH.onArtistAccept error', e);
-          alert('No se pudo aceptar el contrato.');
-          return { ok:false, error:String(e) };
-        }
-      },
-
-      augmentAdminCard(containerEl, contrato){
-        try{
-          const proof = document.createElement('div');
-          proof.className = 'note';
-          proof.style.marginTop = '6px';
-          proof.innerHTML = contrato.comprobante_url
-            ? `Comprobante: <a href="${contrato.comprobante_url}" target="_blank" rel="noopener">ver archivo</a>`
-            : `Sin comprobante aún.`;
-          containerEl.appendChild(proof);
-
-          // Botón Chat (admin)
-          const actions = containerEl.querySelectorAll('button[data-accion]');
-          const btnWrap = actions[0]?.parentElement;
-          if(btnWrap){
-            const btn = document.createElement('button');
-            btn.className = 'btn ghost';
-            btn.textContent = 'Chat (admin)';
-            btn.addEventListener('click', ()=> openChatDialog(contrato,'admin'));
-            btnWrap.appendChild(btn);
-          }
-        }catch(e){
-          console.warn('augmentAdminCard failed', e);
-        }
-      }
-    };
-
-    global.BA_PATCH = BA_PATCH;
-  })(window);
 
   // ======================= INIT & SW =======================
   bootstrap();
   if('serviceWorker' in navigator){
     window.addEventListener('load', ()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
   }
-
-  // Listener opcional para botones con data-action="aceptar" (por si existieran en otro markup)
-  document.addEventListener('click', async (e)=>{
-    const btn = e.target.closest('[data-action="aceptar"]');
-    if (!btn) return;
-    const ref = btn.dataset.ref || btn.closest('[data-ref]')?.dataset.ref;
-    if (!ref){ alert('Falta ref del contrato'); return; }
-    try{
-      const r = await fetch(`${CONFIG.SHEETDB_ENDPOINT}/search?sheet=contratos&ref=${encodeURIComponent(ref)}`);
-      const j = await r.json();
-      const c = j && j[0];
-      if(!c){ alert('No se encontró el contrato'); return; }
-      await BA_PATCH.onArtistAccept(c, 24);
-      alert('Contrato aceptado. El usuario tiene 24h para subir su comprobante.');
-    }catch(err){
-      console.error(err);
-      alert('No se pudo aceptar el contrato.');
-    }
-  });
   </script>
+
+  <!-- Parche BA (onArtistAccept + augmentAdminCard) si existe -->
+  <script src="patches/patches/ba-patch.js"></script>
 </body>
 </html>
