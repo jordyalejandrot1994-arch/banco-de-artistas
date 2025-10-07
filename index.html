@@ -910,5 +910,29 @@ async function uploadProofToGAS(file, ref){
     }
   });
   </script>
+<!-- DIALOGO CHAT UNIFICADO -->
+<dialog id="dlgChat">
+  <form method="dialog" id="formChat">
+    <h3 style="margin:0 0 8px">Chat del contrato <span id="dlgChatRef"></span></h3>
+
+    <div id="chatAudienceRow" style="display:flex; gap:8px; align-items:center; margin-bottom:8px">
+      <label for="chatCanal">Audiencia:</label>
+      <select id="chatCanal"></select>
+      <span id="chatHint" class="note"></span>
+    </div>
+
+    <div id="chatList" class="note" style="max-height:260px; overflow:auto; background:#0c1628; padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.1)">
+      Cargando…
+    </div>
+
+    <div style="margin-top:8px">
+      <textarea id="chatText" rows="3" placeholder="Escribe un mensaje…" style="width:100%"></textarea>
+      <div style="display:flex; gap:8px; margin-top:6px">
+        <button id="chatSend" class="btn primary" type="button">Enviar</button>
+        <button class="btn ghost" value="cancel">Cerrar</button>
+      </div>
+    </div>
+  </form>
+</dialog>
 </body>
 </html>
