@@ -68,7 +68,7 @@
     .ok{color:var(--ok)}
     .danger{color:var(--danger)}
     .hidden{display:none}
-    dialog{border:1px solid rgba(255,255,255,.12); background:#0c1628; color:var(--text);border-radius:16px; padding:16px; width:min(560px, 94vw)}
+    dialog{border:1px solid rgba(255,255,255,.12); background:#0c1628; color:#fff;border-radius:16px; padding:16px; width:min(520px, 92vw)}
     dialog::backdrop{background:rgba(0,0,0,.5)}
     .chip{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
     @media (max-width:720px){ .grid{grid-template-columns:1fr} }
@@ -229,7 +229,7 @@
 
       <div id="lookupResults" style="margin-top:14px"></div>
 
-      <!-- HOOK mensajes -->
+      <!-- HOOK: uploader de pago + mensajes -->
       <div id="hookMensajesUsuario"></div>
     </div>
   </section>
@@ -302,7 +302,7 @@
     </form>
   </dialog>
 
-  <!-- DIALOGO CHAT UNIFICADO -->
+  <!-- DIALOGO CHAT UNIFICADO (modal) -->
   <dialog id="dlgChat">
     <form method="dialog" id="formChat">
       <h3 style="margin:0 0 8px">Chat del contrato <span id="dlgChatRef"></span></h3>
@@ -337,7 +337,7 @@
   };
 
   // ======================= GAS WEBAPP =======================
-  // Reemplaza por tu URL /exec si cambias la implementación
+  // Reemplaza por tu URL /exec si cambia la implementación
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbyWnV2a97GHuRJS0_ptd2VBrdfADZJWWp1HjkgOfg4Ol-VuX2k36ZFJWO_M0Fbrp_Fx/exec';
 
   // ======================= EMAIL (GAS, CORS-proof) =======================
@@ -366,7 +366,7 @@
 
     const r = await fetch(GAS_URL, {
       method: 'POST',
-      headers: { 'Content-Type':'text/plain;charset=utf-8' },
+      headers: { 'Content-Type':'text/plain;charset=utf-8' }, // evita preflight CORS
       body: JSON.stringify({
         action: 'uploadProof',
         ref,
@@ -413,7 +413,7 @@
   const toNum = v => { if(v===null||v===undefined) return 0; const s = String(v).replace(',','.'); const n = parseFloat(s); return isNaN(n)?0:n; };
   function uid(prefix="C"){ const n = Math.floor(Math.random()*1e6).toString().padStart(6,"0"); return prefix + n; }
   function refContrato(){ const d = new Date(); const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,"0"); const day = String(d.getDate()).padStart(2,"0"); const rnd = Math.random().toString(36).slice(2,6).toUpperCase(); return `BA-${y}${m}${day}-${rnd}`; }
-  function stars(rating){ const f=Math.round(Number(rating||0)); const c=Math.max(0,Math.min(5,f)); return "★".repeat(c)+"☆".repeat(5-c); }
+  function stars(rating){ const f=Math.round(Number(rating||0)); return "★".repeat(Math.min(5,f))+"☆".repeat(Math.max(0,5-f)); }
   function normalizeRow(r){ return {...r,
       aprobado: String(r.aprobado||'').toLowerCase()==='true',
       deleted: String(r.deleted||'').toLowerCase()==='true',
@@ -559,7 +559,7 @@
     try{
       await API.create('contratos', contrato);
 
-      // -------- Correo inicial al ARTISTA (sin contacto del usuario) --------
+      // -------- Correo inicial al ARTISTA (sin contacto del usuario)
       await sendEmail({
         to:[artistaActual.correo],
         subject:`Nuevo contrato recibido: ${ref}`,
@@ -577,7 +577,7 @@
           <p><strong>Calles:</strong> ${fd.get('calles')}</p>
           <p><strong>Referencias:</strong> ${fd.get('referencias')}</p>
           <hr>
-          <p style="color:#777">Los datos de contacto del cliente (correo/teléfono) se liberarán una vez que el administrador valide el pago y confirme el contrato.</p>
+          <p style="color:#777">Los datos de contacto del cliente (correo/teléfono) se liberarán cuando el administrador confirme el pago.</p>
         `
       });
 
@@ -593,7 +593,7 @@
     const pin = (Math.floor(Math.random()*900000)+100000).toString();
     const artist = {
       id: uid('A'),
-      aprobado:true,
+      aprobado:true,              // auto-aprobado (puede cambiar en Admin)
       rating:0, votos:0,
       foto:fd.get('foto'), video:fd.get('video'),
       nombre_artistico:fd.get('nombre_artistico'), nombre_real:fd.get('nombre_real'),
@@ -608,6 +608,7 @@
       state.artists.push(artist); renderPeek(); renderExplore();
       const pinBox = qs('#pinResult'); pinBox.classList.remove('hidden');
       pinBox.innerHTML = `<span class="ok">✔</span> Registro recibido. Tu PIN: <strong>${pin}</strong>.<br><span class="muted">También se envió por correo (si está configurado).</span>`;
+      // Email PIN
       await sendEmail({
         to:[artist.correo],
         subject:'Tu PIN de acceso - Banco de Artistas',
@@ -647,12 +648,11 @@
       </div>
       <div style="margin-top:8px" class="note">PIN: ${a.pin}</div>
       <div style="margin-top:8px"><button class="btn ghost" id="btnEditarArtista">Editar datos</button></div>`;
-
     const cont = qs('#artistContracts'); cont.innerHTML="";
     const my = state.contracts.filter(c=>String(c.artista_id)===String(id));
     if(my.length===0){ cont.innerHTML='<div class="note">No hay contratos aún.</div>'; return; }
     my.forEach(c=>{
-      const showContacts = String(c.estado||'').toLowerCase()==='confirmado';
+      const visible = c.estado==='confirmado';
       const div=document.createElement('div'); div.className='card';
       div.innerHTML = `
         <div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
@@ -660,11 +660,8 @@
         <div class="note">Evento: ${(c.fecha||'') } ${ (c.hora||'') }</div>
         <div class="note">Lugar: ${c.usuario_ciudad||''} • ${c.usuario_barrio||''} • ${c.usuario_calles||''} • ${c.usuario_referencias||''}</div>
         <div class="note">
-          Cliente: ${c.usuario_nombres}
-          ${ showContacts
-              ? `${c.usuario_correo?(' • '+c.usuario_correo):''}${c.usuario_celular?(' • '+c.usuario_celular):''}`
-              : ' • (contacto disponible tras confirmación del admin)'
-            }
+          ${visible ? (`Contacto cliente: ${c.usuario_correo || ''} ${c.usuario_celular ? '• '+c.usuario_celular : ''}`)
+                    : ('El contacto del cliente se liberará cuando el admin confirme.')}
         </div>
         <div class="peek" style="margin-top:8px">
           <button class="btn primary" data-accion="aceptar">Aceptar</button>
@@ -684,7 +681,7 @@
             }else if(act==='rechazar'){
               c.estado='rechazado'; await API.updateById('contratos', c.id, {estado:c.estado}); await reloadContracts(); renderPanelArtista(); renderAdmin();
             }else if(act==='mensaje'){
-              openChatDialog(c, 'artista');
+              openChatDialog(c,'artista');
             }
           }catch(err){ alert("Error al actualizar contrato."); }
         });
@@ -693,7 +690,7 @@
     });
   }
 
-  // ======================= MIS RESERVAS (USUARIO) =======================
+  // ======================= MIS RESERVAS =======================
   qs('#formLookup').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -710,22 +707,18 @@
     const box = qs('#lookupResults'); box.innerHTML="";
     if(!res.length){ box.innerHTML='<div class="note">No se encontraron contratos.</div>'; return; }
     res.forEach(c=>{
-      const artistaRow = state.artists.find(a=>String(a.id)===String(c.artista_id)) || {};
-      const artistaCel = artistaRow.celular || '';
+      const visible = c.estado==='confirmado';
       const div=document.createElement('div'); div.className='card';
       div.innerHTML = `
         <div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
         <div class="note">Artista: ${c.artista_nombre}</div>
         <div class="note">Fecha: ${new Date(c.fecha_creacion).toLocaleDateString()}</div>
         <div class="note">
-          ${
-            String(c.estado||'').toLowerCase()==='confirmado'
-              ? `Contacto de artista: ${c.artista_correo||''} ${artistaCel?('• '+artistaCel):''}`
-              : 'El contacto del artista se liberará cuando el admin confirme el contrato.'
-          }
+          ${visible ? (`Contacto artista: ${c.artista_correo || ''} ${ (state.artists.find(a=>a.id===c.artista_id)?.celular || '') ? '• '+(state.artists.find(a=>a.id===c.artista_id)?.celular || '') : ''}`)
+                    : ('El contacto del artista se liberará cuando el admin confirme.')}
         </div>
         <div class="peek" style="margin-top:8px">
-          ${ (['pendiente de pago','por validar pago','pago en revisión'].includes(String(c.estado||'').toLowerCase())) ? '<button class="btn primary" data-accion="subir">Subir comprobante</button>' : '' }
+          ${ (c.estado==='pendiente de pago' || c.estado==='por validar pago' || c.estado==='pago en revisión') ? '<button class="btn primary" data-accion="subir">Subir comprobante</button>' : '' }
           <button class="btn ghost" data-accion="mensaje">Mensaje</button>
         </div>
       `;
@@ -750,7 +743,8 @@
                     subject:`Comprobante recibido - ${c.ref}`,
                     html:`<p>El usuario subió un comprobante para el contrato <strong>${c.ref}</strong>.</p>
                           <p>Estado: <strong>pago en revisión</strong>.</p>
-                          <p>Comprobante: <a href="${jj.url}">${jj.url}</a></p>`
+                          <p>Comprobante: <a href="${jj.url}">${jj.url}</a></p>
+                          <p style="color:#777">El contacto del cliente se revelará cuando el administrador confirme el pago.</p>`
                   });
 
                   alert('Comprobante subido. Estado: pago en revisión.');
@@ -759,7 +753,7 @@
               };
               inp.click();
             } else if(act==='mensaje'){
-              openChatDialog(c, 'usuario');
+              openChatDialog(c,'usuario');
             }
           }catch(err){ console.error(err); alert("Error en la acción."); }
         });
@@ -822,8 +816,8 @@
         </div>
       `;
 
-      // Añade link de comprobante + chat admin
-      BA_PATCH.augmentAdminCard?.(div, c);
+      // Añade link de comprobante + botón Chat (admin)
+      BA_PATCH.augmentAdminCard(div, c);
 
       div.querySelectorAll('button[data-accion]').forEach(b=>{
         b.addEventListener('click', async ()=>{
@@ -834,29 +828,29 @@
             else if(act==='rechazar') c.estado='rechazado';
 
             if(act==='mensaje'){
-              openChatDialog(c, 'admin');
+              openChatDialog(c,'admin');
               return;
             }
 
             await API.updateById('contratos', c.id, {estado:c.estado});
 
+            // Al confirmar: revela contactos y envía a ambos
             if(act==='confirmar'){
-              const artista = state.artists.find(a => String(a.id)===String(c.artista_id)) || {};
               await sendEmail({
-                to:[c.usuario_correo, c.artista_correo],
+                to:[c.usuario_correo],
                 subject:`Contrato ${c.ref} confirmado ✔`,
-                html: `
-                  <h2>¡Contrato confirmado!</h2>
-                  <p><strong>Ref:</strong> ${c.ref}</p>
-                  <p><strong>Artista:</strong> ${c.artista_nombre} • <strong>Show:</strong> ${c.minutos} min</p>
-                  <p><strong>Fecha/Hora:</strong> ${(c.fecha||'')} ${(c.hora||'')}</p>
-                  <p><strong>Ubicación:</strong> ${c.usuario_ciudad||''} • ${c.usuario_barrio||''} • ${c.usuario_calles||''} • ${c.usuario_referencias||''}</p>
-                  <hr>
-                  <h3>Contactos liberados</h3>
-                  <p><strong>Usuario:</strong> ${c.usuario_nombres || ''} — ${c.usuario_correo || ''} — ${c.usuario_celular || ''}</p>
-                  <p><strong>Artista:</strong> ${c.artista_nombre || ''} — ${c.artista_correo || ''} — ${(artista.celular||'')}</p>
-                  <p style="color:#666">Los contactos se muestran también dentro de la app.</p>
-                `
+                html:`<h2>¡Confirmado!</h2>
+                      <p><strong>Artista:</strong> ${c.artista_nombre}</p>
+                      <p><strong>Contacto del artista:</strong> ${c.artista_correo} ${ (state.artists.find(a=>a.id===c.artista_id)?.celular||'') ? '• '+(state.artists.find(a=>a.id===c.artista_id)?.celular||'') : ''}</p>
+                      <p><strong>Nos vemos el día del evento.</strong></p>`
+              });
+              await sendEmail({
+                to:[c.artista_correo],
+                subject:`Contrato ${c.ref} confirmado ✔`,
+                html:`<h2>¡Confirmado!</h2>
+                      <p><strong>Cliente:</strong> ${c.usuario_nombres}</p>
+                      <p><strong>Contacto del cliente:</strong> ${c.usuario_correo || ''} ${c.usuario_celular? '• '+c.usuario_celular : ''}</p>
+                      <p><strong>Detalles del evento:</strong> ${c.fecha||''} ${c.hora||''} • ${c.usuario_ciudad||''}, ${c.usuario_barrio||''}, ${c.usuario_calles||''}, ${c.usuario_referencias||''}</p>`
               });
             }
             renderAdmin();
@@ -867,62 +861,41 @@
     });
   }
 
-  // ======================= CHAT EN DIÁLOGO =======================
-  function openChatDialog(contrato, role){
-    // Config de audiencia según rol/estado
-    const confirmed = String(contrato.estado||'').toLowerCase()==='confirmado';
-    const dlg = qs('#dlgChat');
-    const refEl = qs('#dlgChatRef');
-    const listEl = qs('#chatList');
-    const textEl = qs('#chatText');
-    const sendBtn = qs('#chatSend');
-    const canalSel = qs('#chatCanal');
-    const hintEl = qs('#chatHint');
+  // ======================= CHAT (modal) =======================
+  async function openChatDialog(contrato, role){
+    const dlg = document.getElementById('dlgChat');
+    const refEl = document.getElementById('dlgChatRef');
+    const listEl = document.getElementById('chatList');
+    const textEl = document.getElementById('chatText');
+    const sendBtn = document.getElementById('chatSend');
+    const hintEl = document.getElementById('chatHint');
+    const canalSel = document.getElementById('chatCanal');
 
     refEl.textContent = contrato.ref;
-    listEl.innerHTML = 'Cargando…';
-    textEl.value = '';
 
-    // Opciones de audiencia:
-    // - usuario-admin (visible solo usuario/admin)
-    // - artista-admin (visible solo artista/admin)
-    // - todos (visible a todas las partes) -> SOLO si confirmado
+    // Canales: admin-usuario, admin-artista, usuario-artista (este último solo si confirmado)
     canalSel.innerHTML = '';
-    const opt = (v,t)=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; return o; };
+    const addOpt = (v, t)=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; canalSel.appendChild(o); };
+    addOpt('admin-usuario','Admin ←→ Usuario');
+    addOpt('admin-artista','Admin ←→ Artista');
+    if(contrato.estado==='confirmado') addOpt('usuario-artista','Usuario ←→ Artista');
 
-    if(role==='usuario'){
-      canalSel.appendChild(opt('usuario-admin','Usuario ↔ Admin'));
-      if(confirmed) canalSel.appendChild(opt('todos','Todos (Usuario ↔ Artista ↔ Admin)'));
-    }else if(role==='artista'){
-      canalSel.appendChild(opt('artista-admin','Artista ↔ Admin'));
-      if(confirmed) canalSel.appendChild(opt('todos','Todos (Usuario ↔ Artista ↔ Admin)'));
-    }else{ // admin
-      canalSel.appendChild(opt('usuario-admin','Usuario ↔ Admin'));
-      canalSel.appendChild(opt('artista-admin','Artista ↔ Admin'));
-      if(confirmed) canalSel.appendChild(opt('todos','Todos (Usuario ↔ Artista ↔ Admin)'));
-    }
+    // Permisos de envío:
+    const canSend = (role==='admin') || (role==='usuario') || (role==='artista' && contrato.estado==='confirmado');
+    textEl.disabled = !canSend;
+    sendBtn.disabled = !canSend;
+    hintEl.textContent = canSend ? '' : 'El artista podrá escribir cuando el contrato esté confirmado.';
 
-    // Consejo
-    hintEl.textContent = confirmed ? '' : 'El canal “Todos” se habilita al confirmar el contrato.';
-
-    // Cargar mensajes
     async function load(){
       try{
         const msgs = await API.search('mensajes', { contrato_ref: contrato.ref });
         msgs.sort((a,b)=> (a.ts||'').localeCompare(b.ts||''));
         if(!msgs.length){ listEl.innerHTML = '<div class="note">Sin mensajes aún.</div>'; return; }
-        // Filtrado por audiencia seleccionada
-        const canal = canalSel.value;
-        const visible = msgs.filter(m=>{
-          const aud = (m.audiencia||'').toLowerCase() || 'todos';
-          return aud===canal || canal==='todos' && aud==='todos';
-        });
-        listEl.innerHTML = (visible.length? visible : msgs).map(m=>`
+        listEl.innerHTML = msgs.map(m=>`
           <div style="margin:6px 0">
             <strong>${(m.de||'').toUpperCase()}</strong>
             <span class="muted" style="font-size:.8rem">${m.ts? new Date(m.ts).toLocaleString(): ''}</span>
             <div>${(m.texto||'').replace(/</g,'&lt;')}</div>
-            <div class="muted" style="font-size:.75rem;opacity:.7">canal: ${m.audiencia||'todos'}</div>
           </div>
         `).join('');
         listEl.scrollTop = listEl.scrollHeight;
@@ -931,47 +904,110 @@
       }
     }
 
-    canalSel.onchange = load;
-
-    // Enviar
     sendBtn.onclick = async ()=>{
-      const t = (textEl.value||'').trim(); if(!t) return;
-      // Regla: “todos” solo permitido si confirmado
-      const aud = canalSel.value || 'todos';
-      if(aud==='todos' && !confirmed){
-        alert('El canal “Todos” solo está disponible cuando el contrato está confirmado.');
-        return;
-      }
-      try{
-        await API.create('mensajes', {
-          id: uid('M'),
-          contrato_ref: contrato.ref,
-          de: role,
-          audiencia: aud,
-          texto: t,
-          ts: new Date().toISOString()
-        });
-        textEl.value = '';
-        await load();
-      }catch(e){ alert('No se pudo enviar el mensaje.'); }
+      const t = (textEl.value||'').trim();
+      if(!t || !canSend) return;
+      await API.create('mensajes', {
+        id: uid('M'),
+        contrato_ref: contrato.ref,
+        de: role,
+        canal: canalSel.value, // opcional
+        texto: t,
+        ts: new Date().toISOString()
+      });
+      textEl.value = '';
+      await load();
     };
 
+    await load();
     dlg.showModal();
-    load();
   }
+
+  // ======================= PATCH SEGURO (inline) =======================
+  (function(global){
+    const API = global.API;
+    const sendEmail = global.sendEmail;
+
+    const BA_PATCH = {
+      async onArtistAccept(contrato, graceHours=24){
+        try{
+          await API.updateById('contratos', contrato.id, { estado: 'pendiente de pago' });
+          const venc = new Date(Date.now() + graceHours*60*60*1000).toLocaleString();
+
+          // Mail USUARIO (sin contacto del artista)
+          await sendEmail({
+            to: [ contrato.usuario_correo ],
+            subject: `Contrato ${contrato.ref}: pendiente de pago`,
+            html: `
+              <h2>Tu contrato está pendiente de pago</h2>
+              <p><strong>Ref:</strong> ${contrato.ref}</p>
+              <p><strong>Artista:</strong> ${contrato.artista_nombre}</p>
+              <p><strong>Total a pagar:</strong> $${contrato.precio_user}</p>
+              <p>Sube tu comprobante en la app antes de: <strong>${venc}</strong>.</p>
+              <p style="color:#777">El contacto del artista se revelará cuando el administrador confirme el pago.</p>
+            `
+          });
+
+          // Mail ARTISTA (sin contacto del usuario)
+          await sendEmail({
+            to: [ contrato.artista_correo ],
+            subject: `Contrato ${contrato.ref}: pendiente de pago`,
+            html: `
+              <h2>Contrato en espera de pago</h2>
+              <p><strong>Ref:</strong> ${contrato.ref}</p>
+              <p><strong>Show:</strong> ${contrato.minutos} minutos</p>
+              <p><strong>Neto para ti:</strong> $${contrato.precio_neto_artista}</p>
+              <hr>
+              <p><strong>Evento:</strong> ${contrato.fecha || ''} ${contrato.hora || ''}</p>
+              <p><strong>Ubicación:</strong> ${contrato.usuario_ciudad||''} • ${contrato.usuario_barrio||''} • ${contrato.usuario_calles||''} • ${contrato.usuario_referencias||''}</p>
+              <p style="color:#777">El contacto del cliente se revelará cuando el administrador confirme el pago.</p>
+            `
+          });
+
+          return { ok:true };
+        }catch(e){
+          console.error('BA_PATCH.onArtistAccept error', e);
+          alert('No se pudo aceptar el contrato.');
+          return { ok:false, error:String(e) };
+        }
+      },
+
+      augmentAdminCard(containerEl, contrato){
+        try{
+          const proof = document.createElement('div');
+          proof.className = 'note';
+          proof.style.marginTop = '6px';
+          proof.innerHTML = contrato.comprobante_url
+            ? `Comprobante: <a href="${contrato.comprobante_url}" target="_blank" rel="noopener">ver archivo</a>`
+            : `Sin comprobante aún.`;
+          containerEl.appendChild(proof);
+
+          // Botón Chat (admin)
+          const actions = containerEl.querySelectorAll('button[data-accion]');
+          const btnWrap = actions[0]?.parentElement;
+          if(btnWrap){
+            const btn = document.createElement('button');
+            btn.className = 'btn ghost';
+            btn.textContent = 'Chat (admin)';
+            btn.addEventListener('click', ()=> openChatDialog(contrato,'admin'));
+            btnWrap.appendChild(btn);
+          }
+        }catch(e){
+          console.warn('augmentAdminCard failed', e);
+        }
+      }
+    };
+
+    global.BA_PATCH = BA_PATCH;
+  })(window);
 
   // ======================= INIT & SW =======================
   bootstrap();
   if('serviceWorker' in navigator){
     window.addEventListener('load', ()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
   }
-  </script>
 
-  <!-- Parche BA (onArtistAccept + augmentAdminCard) -->
-  <script src="patches/patches/ba-patch.js"></script>
-
-  <!-- Listener opcional para botones con data-action="aceptar" si existieran -->
-  <script>
+  // Listener opcional para botones con data-action="aceptar" (por si existieran en otro markup)
   document.addEventListener('click', async (e)=>{
     const btn = e.target.closest('[data-action="aceptar"]');
     if (!btn) return;
