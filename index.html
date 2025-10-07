@@ -68,7 +68,7 @@
     .ok{color:var(--ok)}
     .danger{color:var(--danger)}
     .hidden{display:none}
-    dialog{border:1px solid rgba(255,255,255,.12); background:#0c1628; color:var(--text);border-radius:16px; padding:16px; width:min(520px, 92vw)}
+    dialog{border:1px solid rgba(255,255,255,.12); background:#0c1628; color:var(--text);border-radius:16px; padding:16px; width:min(560px, 94vw)}
     dialog::backdrop{background:rgba(0,0,0,.5)}
     .chip{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
     @media (max-width:720px){ .grid{grid-template-columns:1fr} }
@@ -229,7 +229,7 @@
 
       <div id="lookupResults" style="margin-top:14px"></div>
 
-      <!-- HOOK: uploader de pago + mensajes -->
+      <!-- HOOK mensajes -->
       <div id="hookMensajesUsuario"></div>
     </div>
   </section>
@@ -302,6 +302,31 @@
     </form>
   </dialog>
 
+  <!-- DIALOGO CHAT UNIFICADO -->
+  <dialog id="dlgChat">
+    <form method="dialog" id="formChat">
+      <h3 style="margin:0 0 8px">Chat del contrato <span id="dlgChatRef"></span></h3>
+
+      <div id="chatAudienceRow" style="display:flex; gap:8px; align-items:center; margin-bottom:8px">
+        <label for="chatCanal">Audiencia:</label>
+        <select id="chatCanal"></select>
+        <span id="chatHint" class="note"></span>
+      </div>
+
+      <div id="chatList" class="note" style="max-height:260px; overflow:auto; background:#0c1628; padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.1)">
+        Cargando…
+      </div>
+
+      <div style="margin-top:8px">
+        <textarea id="chatText" rows="3" placeholder="Escribe un mensaje…" style="width:100%"></textarea>
+        <div style="display:flex; gap:8px; margin-top:6px">
+          <button id="chatSend" class="btn primary" type="button">Enviar</button>
+          <button class="btn ghost" value="cancel">Cerrar</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
   <script>
   // ======================= CONFIG =======================
   const CONFIG = {
@@ -312,6 +337,7 @@
   };
 
   // ======================= GAS WEBAPP =======================
+  // Reemplaza por tu URL /exec si cambias la implementación
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbyWnV2a97GHuRJS0_ptd2VBrdfADZJWWp1HjkgOfg4Ol-VuX2k36ZFJWO_M0Fbrp_Fx/exec';
 
   // ======================= EMAIL (GAS, CORS-proof) =======================
@@ -319,7 +345,7 @@
     try{
       const r = await fetch(GAS_URL, {
         method: 'POST',
-        headers: { 'Content-Type':'text/plain;charset=utf-8' },
+        headers: { 'Content-Type':'text/plain;charset=utf-8' }, // evita preflight CORS
         body: JSON.stringify({ action:'sendEmail', to, subject, html })
       });
       return await r.json().catch(()=>({}));
@@ -387,7 +413,7 @@
   const toNum = v => { if(v===null||v===undefined) return 0; const s = String(v).replace(',','.'); const n = parseFloat(s); return isNaN(n)?0:n; };
   function uid(prefix="C"){ const n = Math.floor(Math.random()*1e6).toString().padStart(6,"0"); return prefix + n; }
   function refContrato(){ const d = new Date(); const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,"0"); const day = String(d.getDate()).padStart(2,"0"); const rnd = Math.random().toString(36).slice(2,6).toUpperCase(); return `BA-${y}${m}${day}-${rnd}`; }
-  function stars(rating){ const f=Math.round(Number(rating||0)); return "★".repeat(Math.min(5,f))+"☆".repeat(Math.max(0,5-f)); }
+  function stars(rating){ const f=Math.round(Number(rating||0)); const c=Math.max(0,Math.min(5,f)); return "★".repeat(c)+"☆".repeat(5-c); }
   function normalizeRow(r){ return {...r,
       aprobado: String(r.aprobado||'').toLowerCase()==='true',
       deleted: String(r.deleted||'').toLowerCase()==='true',
@@ -532,23 +558,29 @@
     };
     try{
       await API.create('contratos', contrato);
-      // Aviso a ARTISTA
+
+      // -------- Correo inicial al ARTISTA (sin contacto del usuario) --------
       await sendEmail({
         to:[artistaActual.correo],
         subject:`Nuevo contrato recibido: ${ref}`,
         html: `
           <h2>Nuevo contrato por revisar</h2>
-          <p><strong>Artista:</strong> ${artistaActual.nombre_artistico}</p>
           <p><strong>Ref:</strong> ${ref}</p>
-          <p><strong>Duración:</strong> ${minutos} minutos</p>
+          <p><strong>Artista:</strong> ${artistaActual.nombre_artistico}</p>
+          <p><strong>Duración del show:</strong> ${minutos} minutos</p>
           <p><strong>Precio neto para ti:</strong> $${prices.precioNetoArtista}</p>
           <hr>
-          <p><strong>Evento:</strong> ${fd.get('fecha')} ${fd.get('hora')||''}</p>
-          <p><strong>Ubicación:</strong> ${fd.get('ciudad')} • ${fd.get('barrio')} • ${fd.get('calles')} • ${fd.get('referencias')}</p>
-          <p><strong>Cliente:</strong> ${fd.get('nombres')} • ${fd.get('correo')} • ${fd.get('celular')}</p>
-          <p style="color:#555">Ingresa a "Ingresar como artista" para Aceptar o Rechazar.</p>
+          <h3>Detalles del evento</h3>
+          <p><strong>Fecha/Hora:</strong> ${fd.get('fecha')} ${fd.get('hora')||''}</p>
+          <p><strong>Ciudad:</strong> ${fd.get('ciudad')}</p>
+          <p><strong>Barrio:</strong> ${fd.get('barrio')}</p>
+          <p><strong>Calles:</strong> ${fd.get('calles')}</p>
+          <p><strong>Referencias:</strong> ${fd.get('referencias')}</p>
+          <hr>
+          <p style="color:#777">Los datos de contacto del cliente (correo/teléfono) se liberarán una vez que el administrador valide el pago y confirme el contrato.</p>
         `
       });
+
       alert("Contrato generado. Nº "+ref+" — Revisa su estado en MIS RESERVAS.");
       dlgContratar.close();
     }catch(err){ console.error(err); alert("No se pudo crear el contrato en SheetDB."); }
@@ -615,17 +647,25 @@
       </div>
       <div style="margin-top:8px" class="note">PIN: ${a.pin}</div>
       <div style="margin-top:8px"><button class="btn ghost" id="btnEditarArtista">Editar datos</button></div>`;
+
     const cont = qs('#artistContracts'); cont.innerHTML="";
     const my = state.contracts.filter(c=>String(c.artista_id)===String(id));
     if(my.length===0){ cont.innerHTML='<div class="note">No hay contratos aún.</div>'; return; }
     my.forEach(c=>{
+      const showContacts = String(c.estado||'').toLowerCase()==='confirmado';
       const div=document.createElement('div'); div.className='card';
       div.innerHTML = `
         <div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
         <div class="muted">Show: ${c.minutos} min • Tu neto: $${c.precio_neto_artista}</div>
         <div class="note">Evento: ${(c.fecha||'') } ${ (c.hora||'') }</div>
         <div class="note">Lugar: ${c.usuario_ciudad||''} • ${c.usuario_barrio||''} • ${c.usuario_calles||''} • ${c.usuario_referencias||''}</div>
-        <div class="note">Cliente: ${c.usuario_nombres} ${c.usuario_correo?('• '+c.usuario_correo):''} ${c.usuario_celular?('• '+c.usuario_celular):''}</div>
+        <div class="note">
+          Cliente: ${c.usuario_nombres}
+          ${ showContacts
+              ? `${c.usuario_correo?(' • '+c.usuario_correo):''}${c.usuario_celular?(' • '+c.usuario_celular):''}`
+              : ' • (contacto disponible tras confirmación del admin)'
+            }
+        </div>
         <div class="peek" style="margin-top:8px">
           <button class="btn primary" data-accion="aceptar">Aceptar</button>
           <button class="btn ghost" data-accion="rechazar">Rechazar</button>
@@ -644,7 +684,7 @@
             }else if(act==='rechazar'){
               c.estado='rechazado'; await API.updateById('contratos', c.id, {estado:c.estado}); await reloadContracts(); renderPanelArtista(); renderAdmin();
             }else if(act==='mensaje'){
-              openChat(c, 'artista');
+              openChatDialog(c, 'artista');
             }
           }catch(err){ alert("Error al actualizar contrato."); }
         });
@@ -653,7 +693,7 @@
     });
   }
 
-  // ======================= MIS RESERVAS =======================
+  // ======================= MIS RESERVAS (USUARIO) =======================
   qs('#formLookup').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -670,13 +710,22 @@
     const box = qs('#lookupResults'); box.innerHTML="";
     if(!res.length){ box.innerHTML='<div class="note">No se encontraron contratos.</div>'; return; }
     res.forEach(c=>{
+      const artistaRow = state.artists.find(a=>String(a.id)===String(c.artista_id)) || {};
+      const artistaCel = artistaRow.celular || '';
       const div=document.createElement('div'); div.className='card';
       div.innerHTML = `
         <div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
         <div class="note">Artista: ${c.artista_nombre}</div>
         <div class="note">Fecha: ${new Date(c.fecha_creacion).toLocaleDateString()}</div>
+        <div class="note">
+          ${
+            String(c.estado||'').toLowerCase()==='confirmado'
+              ? `Contacto de artista: ${c.artista_correo||''} ${artistaCel?('• '+artistaCel):''}`
+              : 'El contacto del artista se liberará cuando el admin confirme el contrato.'
+          }
+        </div>
         <div class="peek" style="margin-top:8px">
-          ${ (c.estado==='pendiente de pago' || c.estado==='por validar pago' || c.estado==='pago en revisión') ? '<button class="btn primary" data-accion="subir">Subir comprobante</button>' : '' }
+          ${ (['pendiente de pago','por validar pago','pago en revisión'].includes(String(c.estado||'').toLowerCase())) ? '<button class="btn primary" data-accion="subir">Subir comprobante</button>' : '' }
           <button class="btn ghost" data-accion="mensaje">Mensaje</button>
         </div>
       `;
@@ -710,7 +759,7 @@
               };
               inp.click();
             } else if(act==='mensaje'){
-              openChat(c, 'usuario');
+              openChatDialog(c, 'usuario');
             }
           }catch(err){ console.error(err); alert("Error en la acción."); }
         });
@@ -773,8 +822,8 @@
         </div>
       `;
 
-      // Link de comprobante + extras del patch
-      BA_PATCH.augmentAdminCard(div, c);
+      // Añade link de comprobante + chat admin
+      BA_PATCH.augmentAdminCard?.(div, c);
 
       div.querySelectorAll('button[data-accion]').forEach(b=>{
         b.addEventListener('click', async ()=>{
@@ -785,20 +834,29 @@
             else if(act==='rechazar') c.estado='rechazado';
 
             if(act==='mensaje'){
-              openChat(c, 'admin');
+              openChatDialog(c, 'admin');
               return;
             }
 
             await API.updateById('contratos', c.id, {estado:c.estado});
 
             if(act==='confirmar'){
+              const artista = state.artists.find(a => String(a.id)===String(c.artista_id)) || {};
               await sendEmail({
                 to:[c.usuario_correo, c.artista_correo],
                 subject:`Contrato ${c.ref} confirmado ✔`,
-                html:`<h2>¡Confirmado!</h2>
-                      <p>Nos vemos el día del evento, gracias por utilizar <strong>Banco de Artistas</strong>.</p>
-                      <p>Ref: <strong>${c.ref}</strong></p>
-                      <p>Artista: ${c.artista_nombre} • Minutos: ${c.minutos}</p>`
+                html: `
+                  <h2>¡Contrato confirmado!</h2>
+                  <p><strong>Ref:</strong> ${c.ref}</p>
+                  <p><strong>Artista:</strong> ${c.artista_nombre} • <strong>Show:</strong> ${c.minutos} min</p>
+                  <p><strong>Fecha/Hora:</strong> ${(c.fecha||'')} ${(c.hora||'')}</p>
+                  <p><strong>Ubicación:</strong> ${c.usuario_ciudad||''} • ${c.usuario_barrio||''} • ${c.usuario_calles||''} • ${c.usuario_referencias||''}</p>
+                  <hr>
+                  <h3>Contactos liberados</h3>
+                  <p><strong>Usuario:</strong> ${c.usuario_nombres || ''} — ${c.usuario_correo || ''} — ${c.usuario_celular || ''}</p>
+                  <p><strong>Artista:</strong> ${c.artista_nombre || ''} — ${c.artista_correo || ''} — ${(artista.celular||'')}</p>
+                  <p style="color:#666">Los contactos se muestran también dentro de la app.</p>
+                `
               });
             }
             renderAdmin();
@@ -809,95 +867,97 @@
     });
   }
 
-  // ======================= CHAT UNIFICADO (DIALOG + CANALES) =======================
-  async function openChat(contrato, role){
-    const dlg = document.getElementById('dlgChat');
-    const refEl = document.getElementById('dlgChatRef');
-    const listEl = document.getElementById('chatList');
-    const sendBtn = document.getElementById('chatSend');
-    const textEl = document.getElementById('chatText');
-    const hintEl = document.getElementById('chatHint');
-    const canalSel = document.getElementById('chatCanal');
-    const audienceRow = document.getElementById('chatAudienceRow');
+  // ======================= CHAT EN DIÁLOGO =======================
+  function openChatDialog(contrato, role){
+    // Config de audiencia según rol/estado
+    const confirmed = String(contrato.estado||'').toLowerCase()==='confirmado';
+    const dlg = qs('#dlgChat');
+    const refEl = qs('#dlgChatRef');
+    const listEl = qs('#chatList');
+    const textEl = qs('#chatText');
+    const sendBtn = qs('#chatSend');
+    const canalSel = qs('#chatCanal');
+    const hintEl = qs('#chatHint');
 
-    refEl.textContent = contrato.ref || '';
+    refEl.textContent = contrato.ref;
+    listEl.innerHTML = 'Cargando…';
+    textEl.value = '';
 
-    const confirmado = (String(contrato.estado||'').toLowerCase()==='confirmado');
-    const canales = [];
-    if (role === 'admin'){
-      canales.push({v:'admin-usuario', label:'Admin ⇄ Usuario'});
-      canales.push({v:'admin-artista', label:'Admin ⇄ Artista'});
-      if (confirmado) canales.push({v:'todos', label:'Usuario ⇄ Artista (Todos)'});
-    } else if (role === 'usuario'){
-      canales.push({v:'admin-usuario', label:'Con Admin'});
-      if (confirmado) canales.push({v:'todos', label:'Con Artista (Todos)'});
-    } else if (role === 'artista'){
-      canales.push({v:'admin-artista', label:'Con Admin'});
-      if (confirmado) canales.push({v:'todos', label:'Con Usuario (Todos)'});
+    // Opciones de audiencia:
+    // - usuario-admin (visible solo usuario/admin)
+    // - artista-admin (visible solo artista/admin)
+    // - todos (visible a todas las partes) -> SOLO si confirmado
+    canalSel.innerHTML = '';
+    const opt = (v,t)=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; return o; };
+
+    if(role==='usuario'){
+      canalSel.appendChild(opt('usuario-admin','Usuario ↔ Admin'));
+      if(confirmed) canalSel.appendChild(opt('todos','Todos (Usuario ↔ Artista ↔ Admin)'));
+    }else if(role==='artista'){
+      canalSel.appendChild(opt('artista-admin','Artista ↔ Admin'));
+      if(confirmed) canalSel.appendChild(opt('todos','Todos (Usuario ↔ Artista ↔ Admin)'));
+    }else{ // admin
+      canalSel.appendChild(opt('usuario-admin','Usuario ↔ Admin'));
+      canalSel.appendChild(opt('artista-admin','Artista ↔ Admin'));
+      if(confirmed) canalSel.appendChild(opt('todos','Todos (Usuario ↔ Artista ↔ Admin)'));
     }
 
-    canalSel.innerHTML = '';
-    canales.forEach(c=>{ const opt=document.createElement('option'); opt.value=c.v; opt.textContent=c.label; canalSel.appendChild(opt); });
-    audienceRow.style.display = canales.length > 1 ? 'flex' : 'none';
+    // Consejo
+    hintEl.textContent = confirmed ? '' : 'El canal “Todos” se habilita al confirmar el contrato.';
 
-    function canSendFor(canal){ return canal==='todos' ? confirmado : true; }
-
+    // Cargar mensajes
     async function load(){
       try{
         const msgs = await API.search('mensajes', { contrato_ref: contrato.ref });
         msgs.sort((a,b)=> (a.ts||'').localeCompare(b.ts||''));
-        const visibles = new Set(
-          (role==='admin')
-            ? (confirmado ? ['admin-usuario','admin-artista','todos'] : ['admin-usuario','admin-artista'])
-            : (role==='usuario')
-              ? (confirmado ? ['admin-usuario','todos'] : ['admin-usuario'])
-              : (confirmado ? ['admin-artista','todos'] : ['admin-artista'])
-        );
-        const html = msgs
-          .filter(m => visibles.has(m.canal || 'todos'))
-          .map(m=>{
-            const canal = m.canal || 'todos';
-            const quien = (m.de||'').toUpperCase();
-            const when = m.ts ? new Date(m.ts).toLocaleString() : '';
-            return `<div style="margin:6px 0">
-              <div style="display:flex;gap:8px;align-items:center">
-                <strong>${quien}</strong>
-                <span class="badge" style="opacity:.85">${canal}</span>
-                <span class="muted" style="font-size:.8rem">${when}</span>
-              </div>
-              <div>${(m.texto||'').replace(/</g,'&lt;')}</div>
-            </div>`;
-          }).join('');
-        listEl.innerHTML = html || '<div class="note">Sin mensajes aún.</div>';
-        listEl.scrollTop = listEl.scrollHeight;
-
+        if(!msgs.length){ listEl.innerHTML = '<div class="note">Sin mensajes aún.</div>'; return; }
+        // Filtrado por audiencia seleccionada
         const canal = canalSel.value;
-        const allowed = canSendFor(canal);
-        sendBtn.disabled = !allowed; textEl.disabled = !allowed;
-        hintEl.textContent = allowed ? '' : 'Este canal se habilita cuando el contrato está confirmado.';
+        const visible = msgs.filter(m=>{
+          const aud = (m.audiencia||'').toLowerCase() || 'todos';
+          return aud===canal || canal==='todos' && aud==='todos';
+        });
+        listEl.innerHTML = (visible.length? visible : msgs).map(m=>`
+          <div style="margin:6px 0">
+            <strong>${(m.de||'').toUpperCase()}</strong>
+            <span class="muted" style="font-size:.8rem">${m.ts? new Date(m.ts).toLocaleString(): ''}</span>
+            <div>${(m.texto||'').replace(/</g,'&lt;')}</div>
+            <div class="muted" style="font-size:.75rem;opacity:.7">canal: ${m.audiencia||'todos'}</div>
+          </div>
+        `).join('');
+        listEl.scrollTop = listEl.scrollHeight;
       }catch(e){
         listEl.innerHTML = '<div class="danger">No se pudieron cargar mensajes.</div>';
       }
     }
 
-    document.getElementById('chatSend').onclick = async ()=>{
+    canalSel.onchange = load;
+
+    // Enviar
+    sendBtn.onclick = async ()=>{
       const t = (textEl.value||'').trim(); if(!t) return;
-      const canal = canalSel.value; if(!canSendFor(canal)) return;
+      // Regla: “todos” solo permitido si confirmado
+      const aud = canalSel.value || 'todos';
+      if(aud==='todos' && !confirmed){
+        alert('El canal “Todos” solo está disponible cuando el contrato está confirmado.');
+        return;
+      }
       try{
         await API.create('mensajes', {
           id: uid('M'),
           contrato_ref: contrato.ref,
           de: role,
-          canal,
+          audiencia: aud,
           texto: t,
           ts: new Date().toISOString()
         });
-        textEl.value=''; await load();
+        textEl.value = '';
+        await load();
       }catch(e){ alert('No se pudo enviar el mensaje.'); }
     };
 
-    canalSel.onchange = load;
-    dlg.showModal(); await load();
+    dlg.showModal();
+    load();
   }
 
   // ======================= INIT & SW =======================
@@ -930,30 +990,5 @@
     }
   });
   </script>
-
-  <!-- DIALOGO CHAT UNIFICADO -->
-  <dialog id="dlgChat">
-    <form method="dialog" id="formChat">
-      <h3 style="margin:0 0 8px">Chat del contrato <span id="dlgChatRef"></span></h3>
-
-      <div id="chatAudienceRow" style="display:flex; gap:8px; align-items:center; margin-bottom:8px">
-        <label for="chatCanal">Audiencia:</label>
-        <select id="chatCanal"></select>
-        <span id="chatHint" class="note"></span>
-      </div>
-
-      <div id="chatList" class="note" style="max-height:260px; overflow:auto; background:#0c1628; padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.1)">
-        Cargando…
-      </div>
-
-      <div style="margin-top:8px">
-        <textarea id="chatText" rows="3" placeholder="Escribe un mensaje…" style="width:100%"></textarea>
-        <div style="display:flex; gap:8px; margin-top:6px">
-          <button id="chatSend" class="btn primary" type="button">Enviar</button>
-          <button class="btn ghost" value="cancel">Cerrar</button>
-        </div>
-      </div>
-    </form>
-  </dialog>
 </body>
 </html>
