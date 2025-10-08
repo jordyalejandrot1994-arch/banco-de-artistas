@@ -412,6 +412,9 @@
       return r.json();
     }
   };
+    // --- Exponer para ba-patch.js ---
+window.API = API;
+window.sendEmail = sendEmail;
 
   // ======================= UTIL / STATE =======================
   const state = { artists: [], contracts: [], sessionArtist: null };
