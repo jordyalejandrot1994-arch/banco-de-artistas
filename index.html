@@ -724,7 +724,28 @@ window.sendEmail = sendEmail;
           <button class="btn ghost" data-accion="mensaje">Mensaje</button>
         </div>
       `;
-      div.querySelectorAll('button[data-accion]').forEach(b=>{
+      // === Botón "Ver comprobante" si existe ===
+{
+  const proof =
+    c.comprobante_url ||
+    c.payment_comprobante ||
+    c.payment_comprob ||
+    c.comprobante_pago ||
+    c.comprobante ||
+    "";
+
+  if (proof) {
+    const btnRow = div.querySelector(".peek");
+    const a = document.createElement("a");
+    a.className = "btn ghost";
+    a.textContent = "Ver comprobante";
+    a.href = proof;
+    a.target = "_blank";
+    a.rel = "noopener";
+    btnRow.appendChild(a);
+  }
+}
+div.querySelectorAll('button[data-accion]').forEach(b=>{
         b.addEventListener('click', async ()=>{
           const act=b.getAttribute('data-accion');
           try{
