@@ -1,182 +1,242 @@
-/* patches/patches/ba-patch.js
-   Banco de Artistas – helpers para acciones especiales
-   (c) 2025
-*/
-(function (global) {
-  "use strict";
+// patches/patches/ba-patch.js
+// Banco de Artistas - Patch utilitario para index.html
+// Requiere que existan globales: CONFIG, API, sendEmail y el <dialog id="dlgChat"> del index.
 
-  // ====== DEPENDENCIAS DEL INDEX ======
-  // API: { getAll, search, create, updateById }
-  // sendEmail: función que envía correos vía GAS
-  const API = global.API;
-  const sendEmail = global.sendEmail;
-
-  // Pequeño logger con prefijo
-  function log() {
-    try {
-      console.log("[BA_PATCH]", ...arguments);
-    } catch (e) {}
-  }
-
-  // --- Guardas: por si el index aún no cargó ---
-  if (!API || !API.updateById) {
-    log("API.updateById no está disponible aún.");
-  }
-  if (!sendEmail) {
-    log("sendEmail no está disponible aún (se ignorarán emails).");
-  }
-
-  // ========= ACTUALIZACIÓN SEGURA EN SHEETDB =========
-  // Fuerza a actualizar SIEMPRE en la hoja 'contratos'
-  async function safeUpdateContrato(c, data) {
-    try {
-      if (!c || !c.id) throw new Error("Contrato sin id");
-      log("updateById iniciando para", c.id, "data=", data);
-      const result = await API.updateById("contratos", c.id, data);
-      log("updateById OK", result);
-      return true;
-    } catch (e) {
-      log("updateById falló", e);
-      return false;
-    }
-  }
-
-  // ========= ACEPTACIÓN DEL ARTISTA =========
-  // Cambia estado a "pendiente de pago", define fecha límite
-  // y notifica a usuario/artista (sin datos de contacto del usuario).
-  async function onArtistAccept(contrato, graceHours = 24) {
-    try {
-      log("onArtistAccept INICIO", contrato?.ref, "id=", contrato?.id);
-
-      if (!contrato || !contrato.id) {
-        log("Contrato inválido (sin id).");
-        return false;
-      }
-
-      // Sólo permitir si venía "por confirmar artista"
-      if (
-        (contrato.estado || "").toLowerCase() !== "por confirmar artista" &&
-        (contrato.estado || "").toLowerCase() !== "por confirmar"
-      ) {
-        log("Estado no permite aceptación:", contrato.estado);
-        // No lo tratamos como error fatal; devolvemos false para que la UI
-        // muestre mensaje amigable.
-        return false;
-      }
-
-      const venceISO = new Date(
-        Date.now() + graceHours * 60 * 60 * 1000
-      ).toISOString();
-
-      const ok = await safeUpdateContrato(contrato, {
-        estado: "pendiente de pago",
-        vence_pago: venceISO,
-      });
-
-      if (!ok) {
-        log("No se pudo actualizar el contrato a 'pendiente de pago'.");
-        return false;
-      }
-
-      // ===== Emails (no deben romper el flujo si fallan) =====
-      // 1) Email al USUARIO: aceptado → pendiente de pago
-      try {
-        if (sendEmail && contrato.usuario_correo) {
-          await sendEmail({
-            to: [contrato.usuario_correo],
-            subject: `Contrato ${contrato.ref}: pendiente de pago`,
-            html: `
-              <h2>Tu contrato fue aceptado por el artista</h2>
-              <p><strong>Referencia:</strong> ${contrato.ref}</p>
-              <p><strong>Artista:</strong> ${contrato.artista_nombre || ""}</p>
-              <p><strong>Duración:</strong> ${contrato.minutos || ""} minutos</p>
-              <p><strong>Total a pagar:</strong> $${contrato.precio_user || ""}</p>
-              <p><strong>Fecha límite para subir comprobante:</strong> ${new Date(
-                venceISO
-              ).toLocaleString()}</p>
-              <hr/>
-              <p>Ve a <em>Mis reservas</em> y sube tu comprobante para continuar.</p>
-            `,
-          });
-        }
-      } catch (e) {
-        log("Email usuario falló (se ignora):", e);
-      }
-
-      // 2) Email al ARTISTA: aceptó y queda pendiente de pago (sin datos del cliente)
-      try {
-        if (sendEmail && contrato.artista_correo) {
-          await sendEmail({
-            to: [contrato.artista_correo],
-            subject: `Contrato ${contrato.ref} aceptado - Esperando comprobante`,
-            html: `
-              <h2>Contrato aceptado</h2>
-              <p>Has aceptado el contrato <strong>${contrato.ref}</strong>.</p>
-              <p>Estado: <strong>pendiente de pago</strong>.</p>
-              <p>Los datos de contacto del cliente se revelarán cuando el administrador valide el pago y confirme el contrato.</p>
-            `,
-          });
-        }
-      } catch (e) {
-        log("Email artista falló (se ignora):", e);
-      }
-
-      log("onArtistAccept OK", contrato.ref);
-      return true;
-    } catch (e) {
-      log("onArtistAccept ERROR:", e);
-      return false;
-    }
-  }
-
-  // ========= MEJORA DE TARJETA ADMIN =========
-  // Agrega enlace/preview de comprobante si existe.
-  function augmentAdminCard(containerEl, contrato) {
-    try {
-      if (!containerEl || !contrato) return;
-
-      // En tu sheet podrían existir distintas columnas:
-      const proof =
-        contrato.comprobante_url ||
-        contrato.payment_comprobante ||
-        contrato.comprobante ||
-        contrato.comprobante_pago ||
-        "";
-
-      if (!proof) return;
-
-      const note = document.createElement("div");
-      note.className = "note";
-      note.style.marginTop = "8px";
-
-      const isImg = /\.(png|jpe?g|gif|webp)$/i.test(proof);
-
-      note.innerHTML = `
-        <div><strong>Comprobante:</strong> <a href="${proof}" target="_blank" rel="noopener">${proof}</a></div>
-        ${
-          isImg
-            ? `<div style="margin-top:6px">
-                 <img src="${proof}" alt="comprobante" style="max-width:240px;border-radius:8px;border:1px solid rgba(255,255,255,.12)" onerror="this.style.display='none'">
-               </div>`
-            : ""
-        }
-      `;
-
-      // La tarjeta admin en index crea un .peek (fila de botones). Insertamos debajo:
-      const btnRow = containerEl.querySelector(".peek");
-      if (btnRow) btnRow.insertAdjacentElement("afterend", note);
-      else containerEl.appendChild(note);
-    } catch (e) {
-      log("augmentAdminCard error:", e);
-    }
-  }
-
-  // ====== API PÚBLICA ======
+(function(){
   const BA_PATCH = {
-    onArtistAccept,
-    augmentAdminCard,
+    /**
+     * Lógica cuando el ARTISTA acepta un contrato.
+     * - Mueve a "pendiente de pago"
+     * - Guarda fecha límite
+     * - Envía email al usuario con instrucciones para subir comprobante
+     */
+    async onArtistAccept(contrato, horasParaPagar = 24){
+      try{
+        const deadlineIso = new Date(Date.now() + horasParaPagar*3600*1000).toISOString();
+        await API.updateById('contratos', contrato.id, {
+          estado: 'pendiente de pago',
+          pago_deadline: deadlineIso
+        });
+
+        // Email al USUARIO con instrucciones para subir comprobante
+        const appUrl = 'https://jordyalejandrot1994-arch.github.io/banco-de-artistas/';
+        const fechaHumana = new Date(contrato.fecha_creacion || Date.now()).toLocaleString();
+
+        await sendEmail({
+          to: [contrato.usuario_correo],
+          subject: `Tu contrato ${contrato.ref} está pendiente de pago`,
+          html: `
+            <h2>Tu contrato está pendiente de pago</h2>
+            <p><strong>Ref:</strong> ${contrato.ref}</p>
+            <p><strong>Artista:</strong> ${contrato.artista_nombre}</p>
+            <p><strong>Creado:</strong> ${fechaHumana}</p>
+            <p><strong>Total a pagar (con servicio):</strong> $${contrato.precio_user}</p>
+            <hr>
+            <p>Por favor realiza la transferencia y <strong>sube el comprobante</strong> desde
+              <a href="${appUrl}" target="_blank" rel="noopener">Mis reservas</a> usando tu correo o Nº de contrato.</p>
+            <p><em>Límite:</em> ${new Date(deadlineIso).toLocaleString()} (${horasParaPagar}h)</p>
+            <p>Cuenta: <strong>Banco de Loja</strong> 2901691001, Ahorros, <strong>Jordy Torres</strong>, C.I. 1105200057</p>
+          `
+        });
+
+        alert('Contrato aceptado. El usuario tiene ' + horasParaPagar + 'h para subir su comprobante.');
+        return true;
+      }catch(err){
+        console.error('onArtistAccept error', err);
+        alert('No se pudo aceptar el contrato.');
+        return false;
+      }
+    },
+
+    /**
+     * Enriquecer tarjeta en ADMIN:
+     * - Muestra link del comprobante si existe
+     * - Reemplaza botón "Mensaje" para abrir el diálogo de chat
+     */
+    augmentAdminCard(cardEl, contrato){
+      try{
+        // 1) Mostrar link del comprobante (si existe)
+        const btnRow = cardEl.querySelector('.peek');
+        if(btnRow){
+          const already = cardEl.querySelector('[data-comprobante-link]');
+          if(!already){
+            const info = document.createElement('div');
+            info.style.marginTop = '8px';
+            info.setAttribute('data-comprobante-link','');
+            info.innerHTML = contrato.comprobante_url
+              ? `<div class="note">Comprobante: <a href="${contrato.comprobante_url}" target="_blank" rel="noopener">ver archivo</a></div>`
+              : `<div class="note">Comprobante: —</div>`;
+            btnRow.parentElement.appendChild(info);
+          }
+        }
+
+        // 2) Hook del botón "Mensaje" para abrir el diálogo de chat con rol admin
+        const msgBtn = cardEl.querySelector('button[data-accion="mensaje"]');
+        if(msgBtn){
+          msgBtn.addEventListener('click', (e)=>{
+            // Evita que el listener original (prompt) se ejecute
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            BA_PATCH.openChat(contrato, 'admin');
+          }, { capture: true }); // captura para adelantarnos al otro listener
+        }
+      }catch(err){
+        console.warn('augmentAdminCard error', err);
+      }
+    },
+
+    /**
+     * Abre el diálogo de chat unificado en el <dialog id="dlgChat"> del index
+     * Canales:
+     *  - admin-usuario
+     *  - admin-artista
+     *  - usuario-artista (solo si contrato.confirmado)
+     *
+     * role: 'admin' | 'usuario' | 'artista'
+     */
+    async openChat(contrato, role){
+      const dlg = document.getElementById('dlgChat');
+      if(!dlg){ alert('No se encontró el diálogo de chat (#dlgChat).'); return; }
+
+      // DOM refs
+      const refSpan   = document.getElementById('dlgChatRef');
+      const listEl    = document.getElementById('chatList');
+      const textEl    = document.getElementById('chatText');
+      const sendBtn   = document.getElementById('chatSend');
+      const canalSel  = document.getElementById('chatCanal');
+      const hintEl    = document.getElementById('chatHint');
+      const audienceRow = document.getElementById('chatAudienceRow');
+
+      if(!refSpan || !listEl || !textEl || !sendBtn || !canalSel){ alert('Faltan nodos del chat.'); return; }
+
+      refSpan.textContent = contrato.ref || '';
+
+      // Definir canales disponibles según estado
+      const confirmado = String(contrato.estado||'').toLowerCase() === 'confirmado';
+      const canales = [
+        { value: 'admin-usuario', label: 'Admin ↔ Usuario', enabled: true },
+        { value: 'admin-artista', label: 'Admin ↔ Artista', enabled: true },
+        { value: 'usuario-artista', label: 'Usuario ↔ Artista', enabled: confirmado }
+      ];
+
+      // Mostrar/ocultar selector de audiencia:
+      // - Admin siempre puede escoger canal
+      // - Usuario / Artista lo fijamos (no editable)
+      const isAdmin = role === 'admin';
+      audienceRow.style.display = isAdmin ? 'flex' : 'none';
+
+      // Canal por defecto según rol + estado
+      let defaultCanal = 'admin-usuario';
+      if(role === 'artista') defaultCanal = confirmado ? 'usuario-artista' : 'admin-artista';
+      if(role === 'usuario') defaultCanal = confirmado ? 'usuario-artista' : 'admin-usuario';
+
+      // Rellenar selector (si admin)
+      canalSel.innerHTML = '';
+      canales.forEach(c=>{
+        const opt = document.createElement('option');
+        opt.value = c.value;
+        opt.textContent = c.label + (c.enabled ? '' : ' (bloqueado hasta confirmar)');
+        opt.disabled = !c.enabled;
+        canalSel.appendChild(opt);
+      });
+      if(isAdmin){
+        // Admin puede seleccionar canal (si el por defecto está deshabilitado, caer al primero habilitado)
+        const preferred = canales.find(c=>c.value===defaultCanal && c.enabled) || canales.find(c=>c.enabled);
+        canalSel.value = preferred ? preferred.value : 'admin-usuario';
+      }else{
+        // Usuario/Artista fijan el canal (sin selector)
+        canalSel.value = defaultCanal;
+      }
+
+      // Permisos para enviar:
+      // - Admin siempre
+      // - Usuario/Artista:
+      //    * Pueden escribir con admin aún no confirmado (su propio canal con admin)
+      //    * Entre usuario y artista solo si confirmado
+      function canCurrentRoleSend(canal){
+        if(role === 'admin') return true;
+        if(canal === 'usuario-artista') return confirmado; // solo si confirmado
+        if(role === 'usuario' && canal === 'admin-usuario') return true;
+        if(role === 'artista' && canal === 'admin-artista') return true;
+        return false;
+      }
+
+      function updateHint(){
+        const canal = canalSel.value;
+        if(canCurrentRoleSend(canal)){
+          sendBtn.disabled = false; textEl.disabled = false;
+          hintEl.textContent = '';
+        }else{
+          sendBtn.disabled = true; textEl.disabled = true;
+          if(canal==='usuario-artista' && !confirmado){
+            hintEl.textContent = 'Este canal se habilita cuando el contrato esté CONFIRMADO.';
+          }else{
+            hintEl.textContent = 'No tienes permiso para enviar en este canal.';
+          }
+        }
+      }
+
+      async function loadMessages(){
+        listEl.textContent = 'Cargando…';
+        try{
+          // Traer todos y filtrar por canal en cliente
+          const msgs = await API.search('mensajes', { contrato_ref: contrato.ref });
+          const canal = canalSel.value;
+          const filtered = (Array.isArray(msgs) ? msgs : [])
+            .filter(m => (m.canal || 'admin-usuario') === canal)
+            .sort((a,b)=> String(a.ts||'').localeCompare(String(b.ts||'')));
+
+          if(!filtered.length){
+            listEl.innerHTML = '<div class="note">Sin mensajes aún.</div>';
+          }else{
+            listEl.innerHTML = filtered.map(m=>`
+              <div style="margin:6px 0">
+                <strong>${(m.de||'').toUpperCase()}</strong>
+                <span class="muted" style="font-size:.8rem">${m.ts? new Date(m.ts).toLocaleString(): ''}</span>
+                <div>${String(m.texto||'').replace(/</g,'&lt;')}</div>
+              </div>
+            `).join('');
+            listEl.scrollTop = listEl.scrollHeight;
+          }
+        }catch(err){
+          console.error('loadMessages error', err);
+          listEl.innerHTML = '<div class="danger">No se pudieron cargar mensajes.</div>';
+        }
+      }
+
+      // Cambiar de canal (solo admin)
+      canalSel.onchange = async ()=>{ updateHint(); await loadMessages(); };
+
+      // Enviar
+      sendBtn.onclick = async ()=>{
+        const texto = (textEl.value||'').trim();
+        if(!texto) return;
+        const canal = canalSel.value;
+        if(!canCurrentRoleSend(canal)) return;
+
+        try{
+          await API.create('mensajes', {
+            id: uid('M'),
+            contrato_ref: contrato.ref,
+            de: role,
+            canal,
+            texto,
+            ts: new Date().toISOString()
+          });
+          textEl.value = '';
+          await loadMessages();
+        }catch(err){
+          alert('No se pudo enviar el mensaje.');
+        }
+      };
+
+      // Inicializa y muestra
+      updateHint();
+      await loadMessages();
+      dlg.showModal();
+    }
   };
 
-  global.BA_PATCH = BA_PATCH;
-  log("BA_PATCH listo");
-})(window);
+  // expone global
+  window.BA_PATCH = BA_PATCH;
+})();
