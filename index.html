@@ -1,908 +1,760 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0ea5e9" />
-  <title>Banco de Artistas</title>
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="assets/icons/icon-192.png" sizes="192x192">
-  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-  <style>
-    :root{
-      --bg:#0b1220; --panel:#0f172a; --card:#111827; --accent:#0ea5e9; --accent-2:#22d3ee;
-      --text:#e5e7eb; --muted:#94a3b8; --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444;
-      --star:#fbbf24; --shadow:0 10px 30px rgba(0,0,0,.35); --radius:18px;
-    }
-    *{box-sizing:border-box} html,body{height:100%}
-    body{
-      margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;
-      background: radial-gradient(1200px 600px at 10% -10%, rgba(34,211,238,.15), transparent 60%),
-                  radial-gradient(1000px 700px at 120% 10%, rgba(14,165,233,.18), transparent 50%),
-                  var(--bg); color:var(--text);
-    }
-    a{color:var(--accent)}
-    .wrap{max-width:1100px;margin:0 auto;padding:20px}
-    header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;}
-    #logo{display:flex;align-items:center;gap:12px;user-select:none;cursor:pointer;}
-    #logo .mark{width:44px;height:44px;border-radius:14px;background: linear-gradient(135deg,var(--accent),var(--accent-2));
-      display:grid;place-items:center;box-shadow:var(--shadow);position:relative;overflow:hidden;}
-    #logo .mark::after{content:"♪"; font-weight:900; font-size:24px; color:#0b1220; transform:translateY(-1px);}
-    #logo h1{margin:0;font-size:1.35rem;letter-spacing:.5px}
-    #installBtn{padding:10px 14px;border:none;border-radius:12px;background:var(--accent);
-      color:#032030;font-weight:700;cursor:pointer;box-shadow:var(--shadow)}
-    .tagline{color:var(--muted);margin-top:6px}
-    .grid{display:grid;gap:18px;margin-top:22px;grid-template-columns: repeat(2, minmax(0,1fr));}
-    .card{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));border:1px solid rgba(255,255,255,.07);
-      border-radius:var(--radius);padding:18px; box-shadow:var(--shadow); position:relative; overflow:hidden;}
-    .card button.big{width:100%;padding:16px 18px;border-radius:16px;border:0;background:linear-gradient(135deg,var(--accent),var(--accent-2));
-      color:#05131f;font-weight:900;letter-spacing:.3px;font-size:1.05rem;cursor:pointer;}
-    .peek{margin-top:14px;display:flex;gap:10px;overflow:auto;padding-bottom:10px;}
-    .pill{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;background:rgba(255,255,255,.05);
-      border:1px solid rgba(255,255,255,.08);white-space:nowrap;font-size:.9rem}
-    .star{color:var(--star)}
-    .footer-note{color:var(--muted);font-size:.9rem;margin-top:10px}
-    .view{position:fixed; inset:0; background:var(--bg); z-index:40; display:none; overflow:auto;}
-    .view.active{display:block}
-    .view .topbar{position:sticky;top:0;background:rgba(11,18,32,.7);backdrop-filter: blur(8px);
-      display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.06)}
-    .back{background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--text);padding:8px 12px;border-radius:12px;cursor:pointer}
-    .filters{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 18px}
-    select,input[type="search"], input[type="text"], input[type="number"], input[type="datetime-local"], input[type="date"], input[type="time"], input[type="email"], textarea{
-      background:#0c1628;border:1px solid rgba(255,255,255,.1);color:var(--text);padding:10px 12px;border-radius:12px;outline:none;min-width:0}
-    .artist-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
-    .artist{border:1px solid rgba(255,255,255,.08);border-radius:16px;overflow:hidden;background:#0d1729;}
-    .artist .cover{height:150px;background:#0a1220;display:grid;place-items:center;font-weight:700}
-    .artist .pad{padding:12px}
-    .artist .row{display:flex;justify-content:space-between;align-items:center}
-    .btn{padding:10px 12px;border-radius:12px;border:0;cursor:pointer;font-weight:700}
-    .btn.primary{background:var(--accent);color:#04121f}
-    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,.18);color:var(--text)}
-    .badge{font-size:.8rem;color:#02131f;background:var(--accent-2);padding:4px 8px;border-radius:999px}
-    .muted{color:#9aa3b6}
-    .section-title{font-size:1.2rem;margin:10px 0 2px}
-    form{display:grid;gap:12px}
-    .two{display:grid;gap:12px;grid-template-columns:1fr 1fr}
-    .note{font-size:.9rem;color:var(--muted)}
-    .warn{color:var(--warn)}
-    .ok{color:var(--ok)}
-    .danger{color:var(--danger)}
-    .hidden{display:none}
-    dialog{border:1px solid rgba(255,255,255,.12); background:#0c1628; color:var(--text);border-radius:16px; padding:16px; width:min(620px, 92vw)}
-    dialog::backdrop{background:rgba(0,0,0,.5)}
-    .chip{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
-    @media (max-width:720px){ .grid{grid-template-columns:1fr} }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0ea5e9" />
+<title>Banco de Artistas</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icons/icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+<style>
+:root{
+  --bg:#0b1220; --panel:#0f172a; --card:#111827;
+  --accent:#0ea5e9; --accent-2:#22d3ee;
+  --text:#e5e7eb; --muted:#94a3b8;
+  --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444; --star:#fbbf24;
+  --shadow:0 10px 30px rgba(0,0,0,.35); --radius:18px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto;
+  background: radial-gradient(1200px 600px at 10% -10%, rgba(34,211,238,.15), transparent 60%),
+              radial-gradient(1000px 700px at 120% 10%, rgba(14,165,233,.18), transparent 50%),
+              var(--bg);
+  color:var(--text);
+}
+a{color:var(--accent)}
+.wrap{max-width:1100px;margin:0 auto;padding:20px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;}
+#logo{display:flex;align-items:center;gap:12px;user-select:none;cursor:pointer;}
+#logo .mark{width:44px;height:44px;border-radius:14px;background: linear-gradient(135deg,var(--accent),var(--accent-2));
+  display:grid;place-items:center;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+#logo .mark::after{content:"♪"; font-weight:900; font-size:24px; color:#0b1220; transform:translateY(-1px);}
+#logo h1{margin:0;font-size:1.35rem;letter-spacing:.5px}
+#installBtn{padding:10px 14px;border:none;border-radius:12px;background:var(--accent); color:#032030;font-weight:700;cursor:pointer;box-shadow:var(--shadow)}
+.tagline{color:var(--muted);margin-top:6px}
+.grid{display:grid;gap:18px;margin-top:22px;grid-template-columns: repeat(2, minmax(0,1fr));}
+.card{background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));border:1px solid rgba(255,255,255,.07);
+  border-radius:var(--radius);padding:18px; box-shadow:var(--shadow); position:relative; overflow:hidden;}
+.card button.big{width:100%;padding:16px 18px;border-radius:16px;border:0;background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  color:#05131f;font-weight:900;letter-spacing:.3px;font-size:1.05rem;cursor:pointer;}
+.peek{margin-top:14px;display:flex;gap:10px;overflow:auto;padding-bottom:10px;}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.08);white-space:nowrap;font-size:.9rem}
+.star{color:var(--star)}
+.footer-note{color:var(--muted);font-size:.9rem;margin-top:10px}
+.view{position:fixed; inset:0; background:var(--bg); z-index:40; display:none; overflow:auto;}
+.view.active{display:block}
+.view .topbar{position:sticky;top:0;background:rgba(11,18,32,.7);backdrop-filter: blur(8px);
+  display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.06)}
+.back{background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--text);padding:8px 12px;border-radius:12px;cursor:pointer}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 18px}
+select,input[type="search"], input[type="text"], input[type="number"], input[type="datetime-local"], input[type="date"], input[type="time"], input[type="email"], textarea{
+  background:#0c1628;border:1px solid rgba(255,255,255,.1);color:var(--text);padding:10px 12px;border-radius:12px;outline:none;min-width:0}
+.artist-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.artist{border:1px solid rgba(255,255,255,.08);border-radius:16px;overflow:hidden;background:#0d1729;}
+.artist .cover{height:150px;background:#0a1220;display:grid;place-items:center;font-weight:700}
+.artist .pad{padding:12px}
+.artist .row{display:flex;justify-content:space-between;align-items:center}
+.btn{padding:10px 12px;border-radius:12px;border:0;cursor:pointer;font-weight:700}
+.btn.primary{background:var(--accent);color:#04121f}
+.btn.ghost{background:transparent;border:1px solid rgba(255,255,255,.18);color:var(--text)}
+.badge{font-size:.8rem;color:#02131f;background:var(--accent-2);padding:4px 8px;border-radius:999px}
+.muted{color:var(--muted)}
+.section-title{font-size:1.2rem;margin:10px 0 2px}
+form{display:grid;gap:12px}
+.two{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+.note{font-size:.9rem;color:var(--muted)}
+.warn{color:var(--warn)} .ok{color:var(--ok)} .danger{color:var(--danger)} .hidden{display:none}
+dialog{border:1px solid rgba(255,255,255,.12); background:#0c1628; color:var(--text);border-radius:16px; padding:16px; width:min(520px, 92vw)}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
+@media (max-width:720px){ .grid{grid-template-columns:1fr} }
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div id="logo" title="Triple tap para Admin">
-        <div class="mark"></div>
-        <div>
-          <h1>BANCO DE ARTISTAS</h1>
-          <div class="tagline">Talento local, eventos memorables ✨</div>
-        </div>
+<div class="wrap">
+  <header>
+    <div id="logo" title="Triple tap para Admin">
+      <div class="mark"></div>
+      <div>
+        <h1>BANCO DE ARTISTAS</h1>
+        <div class="tagline">Talento local, eventos memorables ✨</div>
       </div>
-      <button id="installBtn" class="btn">Instalar</button>
-    </header>
+    </div>
+    <button id="installBtn" class="btn">Instalar</button>
+  </header>
 
-    <div class="grid" id="homePanel">
-      <div class="card">
-        <button class="big" data-open="explorarView">EXPLORAR ARTISTAS</button>
-        <div class="peek" id="topRatedPeek"></div>
-        <div class="footer-note">Descubre artistas con mejores valoraciones y agenda su show en minutos.</div>
-      </div>
-      <div class="card">
-        <button class="big" data-open="registrarView">REGISTRAR ARTISTA</button>
-        <div class="footer-note">Abre escenario a nuevas oportunidades. ¡Muestra tu talento al mundo!</div>
-      </div>
-      <div class="card">
-        <button class="big" data-open="ingresarArtistaView">INGRESAR COMO ARTISTA</button>
-        <div class="footer-note">Administra tus datos y acepta contratos desde un solo lugar.</div>
-      </div>
-      <div class="card">
-        <button class="big" data-open="misReservasView">MIS RESERVAS</button>
-        <div class="footer-note">Consulta el estado de tus contratos con tu correo, cédula o Nº de contrato.</div>
-      </div>
+  <div class="grid" id="homePanel">
+    <div class="card">
+      <button class="big" data-open="explorarView">EXPLORAR ARTISTAS</button>
+      <div class="peek" id="topRatedPeek"></div>
+      <div class="footer-note">Descubre artistas con mejores valoraciones y agenda su show en minutos.</div>
+    </div>
+    <div class="card">
+      <button class="big" data-open="registrarView">REGISTRAR ARTISTA</button>
+      <div class="footer-note">Sube tu foto desde el celular/PC y empieza a recibir contratos.</div>
+    </div>
+    <div class="card">
+      <button class="big" data-open="ingresarArtistaView">INGRESAR COMO ARTISTA</button>
+      <div class="footer-note">Administra tus datos y acepta contratos desde un solo lugar.</div>
+    </div>
+    <div class="card">
+      <button class="big" data-open="misReservasView">MIS RESERVAS</button>
+      <div class="footer-note">Consulta el estado de tus contratos con tu correo, cédula o Nº de contrato.</div>
     </div>
   </div>
+</div>
 
-  <!-- EXPLORAR -->
-  <section class="view" id="explorarView">
-    <div class="topbar wrap">
-      <button class="back" data-back>← Atrás</button>
-      <strong>Explorar artistas</strong>
+<!-- EXPLORAR -->
+<section class="view" id="explorarView">
+  <div class="topbar wrap">
+    <button class="back" data-back>← Atrás</button>
+    <strong>Explorar artistas</strong>
+  </div>
+  <div class="wrap">
+    <div class="filters">
+      <select id="fTipo">
+        <option value="">Tipo de arte</option>
+        <option>Cantante</option><option>Grupo musical</option><option>Bailarín</option>
+        <option>Grupo de baile</option><option>Cómico</option><option>Pintor</option>
+        <option>Teatro</option><option>DJ</option><option>Presentador de evento</option>
+      </select>
+      <input id="fCiudad" type="search" placeholder="Ciudad">
+      <input id="fQuery" type="search" placeholder="Buscar por nombre…">
     </div>
-    <div class="wrap">
-      <div class="filters">
-        <select id="fTipo">
-          <option value="">Tipo de arte</option>
+    <div class="artist-grid" id="exploreGrid"></div>
+  </div>
+</section>
+
+<!-- REGISTRAR ARTISTA -->
+<section class="view" id="registrarView">
+  <div class="topbar wrap">
+    <button class="back" data-back>← Atrás</button>
+    <strong>Registrar artista</strong>
+  </div>
+  <div class="wrap">
+    <form id="formRegistrar">
+      <div class="two">
+        <div><label>Foto portada (desde tu dispositivo)</label><input id="fotoFile" type="file" accept="image/*" required></div>
+        <div><label>URL de video (YouTube/Vimeo)</label><input name="video" type="text" placeholder="https://… (opcional)"></div>
+      </div>
+      <div class="two">
+        <div><label>Nombre artístico</label><input name="nombre_artistico" type="text" required></div>
+        <div><label>Nombre real</label><input name="nombre_real" type="text" required></div>
+      </div>
+      <div class="two">
+        <div><label>Cédula</label><input name="cedula" type="text" required></div>
+        <div><label>Ciudad</label><input name="ciudad" type="text" required></div>
+      </div>
+      <div class="two">
+        <div><label>Celular (solo admin)</label><input name="celular" type="text" required></div>
+        <div><label>Correo electrónico</label><input name="correo" type="email" required></div>
+      </div>
+      <div>
+        <label>Tipo de arte</label>
+        <select name="tipo_arte" required>
+          <option value="">Selecciona…</option>
           <option>Cantante</option><option>Grupo musical</option><option>Bailarín</option>
           <option>Grupo de baile</option><option>Cómico</option><option>Pintor</option>
           <option>Teatro</option><option>DJ</option><option>Presentador de evento</option>
         </select>
-        <input id="fCiudad" type="search" placeholder="Ciudad">
-        <input id="fQuery" type="search" placeholder="Buscar por nombre…">
       </div>
-      <div class="artist-grid" id="exploreGrid"></div>
-    </div>
-  </section>
+      <div class="two">
+        <div><label>Precio 15 min (USD)</label><input name="p15" type="number" min="0" value="50"></div>
+        <div><label>Precio 30 min (USD)</label><input name="p30" type="number" min="0" value="80"></div>
+      </div>
+      <div class="two">
+        <div><label>Precio 60 min (USD)</label><input name="p60" type="number" min="0" value="120"></div>
+        <div><label>Precio 120 min (USD)</label><input name="p120" type="number" min="0" value="220"></div>
+      </div>
+      <div><label>Biografía artística</label><textarea name="bio" rows="4" placeholder="Cuéntanos tu trayectoria, estilo, repertorio…"></textarea></div>
+      <div class="note">Al registrarte aceptas que <strong>Banco de Artistas</strong> podrá aplicar ajustes de servicio para cubrir costos de gestión y operación.</div>
+      <button class="btn primary">Registrar y generar PIN</button>
+      <div id="pinResult" class="note hidden"></div>
+    </form>
+  </div>
+</section>
 
-  <!-- REGISTRAR ARTISTA -->
-  <section class="view" id="registrarView">
-    <div class="topbar wrap">
-      <button class="back" data-back>← Atrás</button>
-      <strong>Registrar artista</strong>
-    </div>
-    <div class="wrap">
-      <form id="formRegistrar">
-        <div class="two">
-          <div><label>Foto portada (URL)</label><input name="foto" type="text" placeholder="https://… (horizontal)"></div>
-          <div><label>URL de video (YouTube/Vimeo)</label><input name="video" type="text" placeholder="https://…"></div>
-        </div>
-        <div class="two">
-          <div><label>Nombre artístico</label><input name="nombre_artistico" type="text" required></div>
-          <div><label>Nombre real</label><input name="nombre_real" type="text" required></div>
-        </div>
-        <div class="two">
-          <div><label>Cédula</label><input name="cedula" type="text" required></div>
-          <div><label>Ciudad</label><input name="ciudad" type="text" required></div>
-        </div>
-        <div class="two">
-          <div><label>Celular (solo admin)</label><input name="celular" type="text" required></div>
-          <div><label>Correo electrónico</label><input name="correo" type="email" required></div>
-        </div>
-        <div>
-          <label>Tipo de arte</label>
-          <select name="tipo_arte" required>
-            <option value="">Selecciona…</option>
-            <option>Cantante</option><option>Grupo musical</option><option>Bailarín</option>
-            <option>Grupo de baile</option><option>Cómico</option><option>Pintor</option>
-            <option>Teatro</option><option>DJ</option><option>Presentador de evento</option>
-          </select>
-        </div>
-        <div class="two">
-          <div><label>Precio 15 min (USD)</label><input name="p15" type="number" min="0" value="50"></div>
-          <div><label>Precio 30 min (USD)</label><input name="p30" type="number" min="0" value="80"></div>
-        </div>
-        <div class="two">
-          <div><label>Precio 60 min (USD)</label><input name="p60" type="number" min="0" value="120"></div>
-          <div><label>Precio 120 min (USD)</label><input name="p120" type="number" min="0" value="220"></div>
-        </div>
-        <div><label>Biografía artística</label><textarea name="bio" rows="4" placeholder="Cuéntanos tu trayectoria, estilo, repertorio…"></textarea></div>
-        <div class="note">Al registrarte aceptas que <strong>Banco de Artistas</strong> podrá aplicar ajustes de servicio para cubrir costos de gestión y operación.</div>
-        <button class="btn primary">Registrar y generar PIN</button>
-        <div id="pinResult" class="note hidden"></div>
+<!-- INGRESAR COMO ARTISTA -->
+<section class="view" id="ingresarArtistaView">
+  <div class="topbar wrap">
+    <button class="back" data-back>← Atrás</button>
+    <strong>Ingreso de artista</strong>
+  </div>
+  <div class="wrap">
+    <dialog id="dlgLoginArtista">
+      <form method="dialog" id="formLoginArtista">
+        <h3>Ingresa con tu correo y PIN</h3>
+        <input name="correo" type="email" placeholder="Correo" required>
+        <input name="pin" type="text" placeholder="PIN" required>
+        <menu>
+          <button value="cancel" class="btn ghost">Cancelar</button>
+          <button value="ok" class="btn primary">Entrar</button>
+        </menu>
       </form>
+    </dialog>
+    <button class="btn primary" id="btnAbrirLoginArtista">Ingresar</button>
+    <div id="panelArtista" class="hidden">
+      <h3>Tu panel</h3>
+      <div class="note warn">“Banco de Artistas podrá aplicar ajustes de servicio sobre los precios publicados para cubrir costos de gestión y operación.”</div>
+      <div id="artistInfo" class="card" style="margin-top:12px"></div>
+      <h4 class="section-title">Contratos</h4>
+      <div id="artistContracts"></div>
+      <!-- HOOK: mensajes para el artista -->
+      <div id="hookMensajesArtista" style="margin-top:12px"></div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- INGRESAR COMO ARTISTA -->
-  <section class="view" id="ingresarArtistaView">
-    <div class="topbar wrap">
-      <button class="back" data-back>← Atrás</button>
-      <strong>Ingreso de artista</strong>
-    </div>
-    <div class="wrap">
-      <dialog id="dlgLoginArtista">
-        <form method="dialog" id="formLoginArtista">
-          <h3>Ingresa con tu correo y PIN</h3>
-          <input name="correo" type="email" placeholder="Correo" required>
-          <input name="pin" type="text" placeholder="PIN" required>
-          <menu>
-            <button value="cancel" class="btn ghost">Cancelar</button>
-            <button value="ok" class="btn primary">Entrar</button>
-          </menu>
-        </form>
-      </dialog>
-      <button class="btn primary" id="btnAbrirLoginArtista">Ingresar</button>
-
-      <div id="panelArtista" class="hidden">
-        <h3>Tu panel</h3>
-        <div class="note warn">“Banco de Artistas podrá aplicar ajustes de servicio sobre los precios publicados para cubrir costos de gestión y operación.”</div>
-
-        <div id="artistInfo" class="card" style="margin-top:12px"></div>
-
-        <!-- Editor de Artista -->
-        <dialog id="dlgEditarArtista">
-          <form method="dialog" id="formEditarArtista">
-            <h3>Editar datos</h3>
-            <div class="two">
-              <div><label>Nombre artístico</label><input name="nombre_artistico" required></div>
-              <div><label>Ciudad</label><input name="ciudad" required></div>
-            </div>
-            <div class="two">
-              <div><label>Tipo de arte</label><input name="tipo_arte" required></div>
-              <div><label>Correo</label><input name="correo" type="email" required></div>
-            </div>
-            <div class="two">
-              <div><label>Celular</label><input name="celular" required></div>
-              <div><label>Video (URL)</label><input name="video"></div>
-            </div>
-            <div class="two">
-              <div><label>Foto portada (URL)</label><input name="foto"></div>
-              <div><label>Cédula</label><input name="cedula"></div>
-            </div>
-            <div class="two">
-              <div><label>Precio 15</label><input name="p15" type="number"></div>
-              <div><label>Precio 30</label><input name="p30" type="number"></div>
-            </div>
-            <div class="two">
-              <div><label>Precio 60</label><input name="p60" type="number"></div>
-              <div><label>Precio 120</label><input name="p120" type="number"></div>
-            </div>
-            <div><label>Biografía</label><textarea name="bio" rows="3"></textarea></div>
-            <menu>
-              <button value="cancel" class="btn ghost">Cancelar</button>
-              <button value="ok" class="btn primary">Guardar</button>
-            </menu>
-          </form>
-        </dialog>
-
-        <h4 class="section-title">Contratos</h4>
-        <div id="artistContracts"></div>
-
-        <!-- HOOK: mensajes para el artista -->
-        <div id="hookMensajesArtista" style="margin-top:12px"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- MIS RESERVAS -->
-  <section class="view" id="misReservasView">
-    <div class="topbar wrap">
-      <button class="back" data-back>← Atrás</button>
-      <strong>Mis reservas</strong>
-    </div>
-
-    <div class="wrap">
-      <form id="formLookup">
-        <div class="two">
-          <input name="correo" type="email" placeholder="Correo (opcional)">
-          <input name="cedula" type="text" placeholder="Cédula (opcional)">
-        </div>
-        <input name="contrato" type="text" placeholder="Nº de contrato (opcional)">
-        <button class="btn primary">Buscar</button>
-      </form>
-
-      <div id="lookupResults" style="margin-top:14px"></div>
-
-      <!-- HOOK: uploader de pago + mensajes -->
-      <div id="hookMensajesUsuario"></div>
-    </div>
-  </section>
-
-  <!-- ADMIN (OCULTO) -->
-  <section class="view" id="adminView">
-    <div class="topbar wrap">
-      <button class="back" data-back>← Atrás</button>
-      <strong>Panel de administración</strong>
-    </div>
-    <div class="wrap">
-      <div class="chip">Aprobación de artistas</div>
-      <div id="adminArtists" class="artist-grid" style="margin-top:10px"></div>
-      <div class="chip" style="margin-top:18px">Contratos</div>
-      <div id="adminContracts" style="margin-top:10px"></div>
-    </div>
-  </section>
-
-  <!-- DIALOGO CONTRATAR -->
-  <dialog id="dlgContratar">
-    <form id="formContratar" method="dialog">
-      <h3>Contratar a <span id="contratarNombre"></span></h3>
-      <input name="nombres" type="text" placeholder="Nombres completos" required>
+<!-- MIS RESERVAS -->
+<section class="view" id="misReservasView">
+  <div class="topbar wrap">
+    <button class="back" data-back>← Atrás</button>
+    <strong>Mis reservas</strong>
+  </div>
+  <div class="wrap">
+    <form id="formLookup">
       <div class="two">
-        <input name="cedula" type="text" placeholder="Cédula" required>
-        <input name="celular" type="text" placeholder="Celular" required>
+        <input name="correo" type="email" placeholder="Correo (opcional)">
+        <input name="cedula" type="text" placeholder="Cédula (opcional)">
       </div>
-      <input name="correo" type="email" placeholder="Correo electrónico" required>
-      <div class="two">
-        <input name="fecha" type="date" required>
-        <input name="hora" type="time" required>
-      </div>
-      <div class="two">
-        <input name="ciudad" type="text" placeholder="Ciudad" required>
-        <input name="barrio" type="text" placeholder="Barrio" required>
-      </div>
-      <div class="two">
-        <input name="calles" type="text" placeholder="Calles" required>
-        <input name="referencias" type="text" placeholder="Referencias" required>
-      </div>
-      <div class="two">
-        <select name="duracion" required>
-          <option value="">Tiempo del show</option>
-          <option value="15">15 minutos</option>
-          <option value="30">30 minutos</option>
-          <option value="60">60 minutos</option>
-          <option value="120">120 minutos</option>
-        </select>
-        <input name="precio_calculado" type="text" readonly placeholder="Precio final (con servicio)">
-      </div>
-      <div class="note">Sube comprobante de transferencia (opcional aquí; oficial en Mis reservas):</div>
-      <input name="comprobante" type="file" accept="image/*,application/pdf">
-      <div class="note">Cuenta para transferencias: <strong>Banco de Loja</strong> 2901691001, Ahorros, <strong>Jordy Torres</strong>, C.I. 1105200057</div>
-      <menu>
-        <button value="cancel" class="btn ghost">Cancelar</button>
-        <button value="ok" class="btn primary">Generar contrato</button>
-      </menu>
+      <input name="contrato" type="text" placeholder="Nº de contrato (opcional)">
+      <button class="btn primary">Buscar</button>
     </form>
-  </dialog>
+    <div id="lookupResults" style="margin-top:14px"></div>
+    <!-- HOOK: uploader de pago + mensajes -->
+    <div id="hookMensajesUsuario"></div>
+  </div>
+</section>
 
-  <!-- DIALOGO LOGIN ADMIN -->
-  <dialog id="dlgAdmin">
-    <form id="formAdmin" method="dialog">
-      <h3>Acceso administrativo</h3>
-      <input type="password" name="pass" placeholder="Contraseña" required>
-      <menu>
-        <button value="cancel" class="btn ghost">Cancelar</button>
-        <button value="ok" class="btn primary">Entrar</button>
-      </menu>
-    </form>
-  </dialog>
+<!-- ADMIN (OCULTO) -->
+<section class="view" id="adminView">
+  <div class="topbar wrap">
+    <button class="back" data-back>← Atrás</button>
+    <strong>Panel de administración</strong>
+  </div>
+  <div class="wrap">
+    <div class="chip">Aprobación de artistas</div>
+    <div id="adminArtists" class="artist-grid" style="margin-top:10px"></div>
+    <div class="chip" style="margin-top:18px">Contratos</div>
+    <div id="adminContracts" style="margin-top:10px"></div>
+  </div>
+</section>
 
-  <!-- DIALOGO CHAT UNIFICADO -->
-  <dialog id="dlgChat">
-    <form method="dialog" id="formChat">
-      <h3 style="margin:0 0 8px">Chat del contrato <span id="dlgChatRef"></span></h3>
+<!-- DIALOGO CONTRATAR -->
+<dialog id="dlgContratar">
+  <form id="formContratar" method="dialog">
+    <h3>Contratar a <span id="contratarNombre"></span></h3>
+    <input name="nombres" type="text" placeholder="Nombres completos" required>
+    <div class="two">
+      <input name="cedula" type="text" placeholder="Cédula" required>
+      <input name="celular" type="text" placeholder="Celular" required>
+    </div>
+    <input name="correo" type="email" placeholder="Correo electrónico" required>
+    <div class="two">
+      <input name="fecha" type="date" required>
+      <input name="hora" type="time" required>
+    </div>
+    <div class="two">
+      <input name="ciudad" type="text" placeholder="Ciudad" required>
+      <input name="barrio" type="text" placeholder="Barrio" required>
+    </div>
+    <div class="two">
+      <input name="calles" type="text" placeholder="Calles" required>
+      <input name="referencias" type="text" placeholder="Referencias" required>
+    </div>
+    <div class="two">
+      <select name="duracion" required>
+        <option value="">Tiempo del show</option>
+        <option value="15">15 minutos</option>
+        <option value="30">30 minutos</option>
+        <option value="60">60 minutos</option>
+        <option value="120">120 minutos</option>
+      </select>
+      <input name="precio_calculado" type="text" readonly placeholder="Precio final (con servicio)">
+    </div>
+    <div class="note">Sube comprobante de transferencia (opcional aquí; oficial en Mis reservas):</div>
+    <input name="comprobante" type="file" accept="image/*,application/pdf">
+    <div class="note">Cuenta para transferencias: <strong>Banco de Loja</strong> 2901691001, Ahorros, <strong>Jordy Torres</strong>, C.I. 1105200057</div>
+    <menu>
+      <button value="cancel" class="btn ghost">Cancelar</button>
+      <button value="ok" class="btn primary">Generar contrato</button>
+    </menu>
+  </form>
+</dialog>
 
-      <div id="chatAudienceRow" style="display:flex; gap:8px; align-items:center; margin-bottom:8px">
-        <label for="chatCanal">Audiencia:</label>
-        <select id="chatCanal"></select>
-        <span id="chatHint" class="note"></span>
-      </div>
+<!-- DIALOGO LOGIN ADMIN -->
+<dialog id="dlgAdmin">
+  <form id="formAdmin" method="dialog">
+    <h3>Acceso administrativo</h3>
+    <input type="password" name="pass" placeholder="Contraseña" required>
+    <menu>
+      <button value="cancel" class="btn ghost">Cancelar</button>
+      <button value="ok" class="btn primary">Entrar</button>
+    </menu>
+  </form>
+</dialog>
 
-      <div id="chatList" class="note" style="max-height:260px; overflow:auto; background:#0c1628; padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.1)">
-        Cargando…
-      </div>
-
-      <div style="margin-top:8px">
-        <textarea id="chatText" rows="3" placeholder="Escribe un mensaje…" style="width:100%"></textarea>
-        <div style="display:flex; gap:8px; margin-top:6px">
-          <button id="chatSend" class="btn primary" type="button">Enviar</button>
-          <button class="btn ghost" value="cancel">Cerrar</button>
-        </div>
-      </div>
-    </form>
-  </dialog>
-
-  <script>
-  // ======================= CONFIG (SOLO GAS) =======================
-  const CONFIG = {
-  GAS_URL: "https://script.google.com/macros/s/AKfycbzhUPF9w8deXnvRioAoiS6coKC41N13F25QySSLeD0ayte79y1_rVsm6FiKeg8vy7kG/exec";
+<script>
+// ======================= CONFIG =======================
+const CONFIG = {
+  SHEETDB_ENDPOINT: "https://sheetdb.io/api/v1/jaa331n4u5icl",
   COMMISSION_USER: 0.10,
   COMMISSION_ARTIST: 0.05,
-  ADMIN_PASSWORD: "admin2026."
+  ADMIN_PASSWORD: "Admin2026"
 };
-    
-  // ======================= HELPERS GAS =======================
-  async function GAS(payload){
-    try{
-      const r = await fetch(CONFIG.GAS_URL, {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify(payload)
-      });
-      return await r.json();
-    }catch(e){
-      console.error('GAS error', e);
-      return {ok:false, error:String(e)};
-    }
-  }
+// ======================= GAS (EMAIL/DRIVE) =======================
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwSQeHCvROms5_FkzffVtltXGDFUZ6UB-i2tYzUopwyzjH5CsHkvK70qdRHyTG82IjC/exec";
 
-  const API = {
-    async getAll(sheet){ const r = await GAS({action:'search', sheet, filters:{} }); return r.ok ? r.results : []; },
-    async search(sheet, filters){ const r = await GAS({action:'search', sheet, filters }); return r.ok ? r.results : []; },
-    async create(sheet, record){ const r = await GAS({action:'create', sheet, record}); if(!r.ok) throw new Error(r.error||'create'); return r; },
-    async updateById(sheet, id, record){ const r = await GAS({action:'update', sheet, id, record}); if(!r.ok) throw new Error(r.error||'update'); return r; }
+async function sendEmail({to=[], subject="Banco de Artistas", html=""}){
+  try{
+    const r = await fetch(GAS_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action:'sendEmail', to, subject, html })
+    });
+    return await r.json().catch(()=>({}));
+  }catch(e){
+    console.warn("Email no enviado (GAS):", e); return {ok:false};
+  }
+}
+async function uploadToDrive({action, ref, file}){ // action: uploadProof|uploadPhoto
+  const dataUrl = await new Promise((ok,ko)=>{ const fr = new FileReader(); fr.onload=()=>ok(fr.result); fr.onerror=ko; fr.readAsDataURL(file); });
+  const r = await fetch(GAS_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ action, ref, fileName:file.name, mimeType:file.type||'application/octet-stream', dataUrl })
+  });
+  return await r.json();
+}
+// ======================= API HELPERS =======================
+const API = {
+  async getAll(sheet){ const url = `${CONFIG.SHEETDB_ENDPOINT}?sheet=${encodeURIComponent(sheet)}`; const r = await fetch(url); if(!r.ok) throw new Error("Error GET "+sheet); return r.json(); },
+  async search(sheet, queryObj){ const params = new URLSearchParams({sheet}); for(const k in queryObj){ params.append(k, queryObj[k]); } const url = `${CONFIG.SHEETDB_ENDPOINT}/search?${params.toString()}`; const r = await fetch(url); if(!r.ok) throw new Error("Error search "+sheet); return r.json(); },
+  async create(sheet, data){ const url = `${CONFIG.SHEETDB_ENDPOINT}?sheet=${encodeURIComponent(sheet)}`; const r = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({data})}); if(!r.ok) throw new Error("Error create "+sheet); return r.json(); },
+  async updateById(sheet, id, data){ const url = `${CONFIG.SHEETDB_ENDPOINT}/id/${encodeURIComponent(id)}?sheet=${encodeURIComponent(sheet)}`; const r = await fetch(url, {method:"PATCH", headers:{"Content-Type":"application/json"}, body: JSON.stringify({data})}); if(!r.ok) throw new Error("Error update "+sheet); return r.json(); }
+};
+// ======================= UTIL / STATE =======================
+const state = { artists: [], contracts: [], sessionArtist: null };
+const qs = s=>document.querySelector(s);
+const qsa = s=>[...document.querySelectorAll(s)];
+const toNum = v => { if(v===null||v===undefined) return 0; const s = String(v).replace(',','.'); const n = parseFloat(s); return isNaN(n)?0:n; };
+function uid(prefix="C"){ const n = Math.floor(Math.random()*1e6).toString().padStart(6,"0"); return prefix + n; }
+function refContrato(){ const d = new Date(); const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,"0"); const day = String(d.getDate()).padStart(2,"0"); const rnd = Math.random().toString(36).slice(2,6).toUpperCase(); return `BA-${y}${m}${day}-${rnd}`; }
+function stars(rating){ const f=Math.round(Number(rating||0)); return "★".repeat(Math.min(5,f))+"☆".repeat(5-Math.min(5,f)); }
+function normalizeRow(r){ return {...r, aprobado: String(r.aprobado||'').toLowerCase()==='true', deleted: String(r.deleted||'').toLowerCase()==='true', rating: toNum(r.rating), votos: parseInt(r.votos||'0')||0, p15: toNum(r.p15), p30: toNum(r.p30), p60: toNum(r.p60), p120: toNum(r.p120) }; }
+function calcPrecio(artist, minutos){ const base = (minutos==15?artist.p15:minutos==30?artist.p30:minutos==60?artist.p60:artist.p120) || 0;
+  const precioUser = Math.round(base*(1+CONFIG.COMMISSION_USER));
+  const precioNetoArtista = Math.round(base*(1-CONFIG.COMMISSION_ARTIST));
+  return {base, precioUser, precioNetoArtista}; }
+// ======================= NAV / PWA =======================
+qsa('[data-open]').forEach(btn=>btn.addEventListener('click', e=>{ qs('#'+e.currentTarget.getAttribute('data-open')).classList.add('active'); window.scrollTo({top:0,behavior:"instant"});} ));
+qsa('[data-back]').forEach(b=>b.addEventListener('click',()=>{ qsa('.view').forEach(v=>v.classList.remove('active')); }));
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredPrompt=e;});
+qs('#installBtn').addEventListener('click', async ()=>{ if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; } else alert('Para instalar, abre el menú del navegador y elige "Añadir a la pantalla de inicio".'); });
+(function adminReveal(){ let taps=0,timer=null; qs('#logo').addEventListener('click',()=>{taps++; if(timer) clearTimeout(timer); timer=setTimeout(()=>{taps=0},600); if(taps>=3){taps=0; abrirAdminLogin();}}); document.addEventListener('keydown',(e)=>{ if(e.ctrlKey&&e.altKey&&(e.key.toLowerCase()==='a')) abrirAdminLogin(); }); })();
+function abrirAdminLogin(){ qs('#dlgAdmin').showModal(); }
+qs('#formAdmin').addEventListener('submit',(e)=>{ const pass=new FormData(e.target).get('pass'); if(pass===CONFIG.ADMIN_PASSWORD){ qs('#dlgAdmin').close(); qs('#adminView').classList.add('active'); renderAdmin(); } else { e.preventDefault(); alert('Contraseña inválida'); }});
+// ======================= BOOTSTRAP =======================
+async function bootstrap(){
+  try{
+    const rows = await API.getAll('artistas');
+    state.artists = rows.map(normalizeRow).filter(a=>!a.deleted);
+    renderPeek(); renderExplore();
+  }catch(err){ console.error(err); alert("No se pudo cargar datos desde SheetDB. Verifica el endpoint o permisos."); }
+}
+bootstrap();
+// ======================= EXPLORAR =======================
+function renderPeek(){
+  const top = [...state.artists].filter(a=>a.aprobado).sort((a,b)=> (b.rating||0)-(a.rating||0)).slice(0,4);
+  const cont = qs('#topRatedPeek'); cont.innerHTML="";
+  top.forEach(a=>{ const el=document.createElement('div'); el.className='pill'; el.innerHTML=`<span class="star">★</span> ${a.nombre_artistico} <span class="muted">(${(a.rating||0).toFixed(1)})</span>`; cont.appendChild(el); });
+}
+function renderExplore(){
+  const Grid = qs('#exploreGrid'); Grid.innerHTML="";
+  const t = qs('#fTipo').value.toLowerCase(); const c = qs('#fCiudad').value.toLowerCase(); const q = qs('#fQuery').value.toLowerCase();
+  const list = state.artists.filter(a=>a.aprobado).filter(a=>(!t||(a.tipo_arte||'').toLowerCase()===t)&&(!c||(a.ciudad||'').toLowerCase().includes(c))&&(!q||(a.nombre_artistico||'').toLowerCase().includes(q)));
+  list.forEach(a=>{
+    const card=document.createElement('div'); card.className='artist';
+    card.innerHTML =
+    `<div class="cover" style="background-image:url('${a.foto||''}');background-size:cover;background-position:center">${!a.foto? a.nombre_artistico : ""}</div>
+     <div class="pad">
+       <div class="row"><strong>${a.nombre_artistico}</strong><span class="badge">${a.tipo_arte||''}</span></div>
+       <div class="muted">${a.ciudad||''}</div>
+       <div class="row" style="margin-top:6px"><span class="star">${stars(a.rating||0)}</span><button class="btn primary">Ver artista</button></div>
+     </div>`;
+    card.querySelector('.btn').addEventListener('click',()=> verArtista(a.id));
+    Grid.appendChild(card);
+  });
+}
+qs('#fTipo').addEventListener('change', renderExplore); ['#fCiudad','#fQuery'].forEach(id=> qs(id).addEventListener('input', renderExplore));
+// ======================= DETALLE & CONTRATAR =======================
+let artistaActual=null; const dlgContratar = qs('#dlgContratar');
+function verArtista(id){
+  const a = state.artists.find(x=>String(x.id)===String(id)); if(!a) return;
+  artistaActual=a;
+  const v = document.createElement('section'); v.className='view active'; v.id='viewDetalle';
+  const {p15,p30,p60,p120}=a;
+  v.innerHTML =
+  `<div class="topbar wrap"><button class="back" id="backDetalle">← Atrás</button><strong>${a.nombre_artistico}</strong></div>
+   <div class="wrap">
+     <div class="card">
+       <div class="two">
+         <img src="${a.foto||''}" alt="portada" style="width:100%;border-radius:14px;max-height:260px;object-fit:cover">
+         <div>
+          <div class="chip">${a.tipo_arte||''} • ${a.ciudad||''}</div>
+          <div style="margin-top:8px" class="star">${stars(a.rating||0)} <span class="muted">(${a.votos||0} votos)</span></div>
+          <div class="note" style="margin-top:8px">${a.bio||''}</div>
+          <div class="section-title">Tarifas base (sin servicio)</div>
+          <div class="peek"><span class="pill">15m: $${p15||0}</span><span class="pill">30m: $${p30||0}</span><span class="pill">60m: $${p60||0}</span><span class="pill">120m: $${p120||0}</span></div>
+          <button class="btn primary" id="btnContratar">Contratar</button>
+         </div>
+       </div>
+       <div style="margin-top:12px">${a.video?`<a href="${a.video}" target="_blank">Ver video de muestra</a>`:''}</div>
+     </div>
+   </div>`;
+  document.body.appendChild(v);
+  v.querySelector('#backDetalle').addEventListener('click',()=> v.remove());
+  v.querySelector('#btnContratar').addEventListener('click',()=>{ qs('#contratarNombre').textContent=a.nombre_artistico; dlgContratar.showModal(); });
+}
+qs('#formContratar').addEventListener('change', ()=>{
+  if(!artistaActual) return; const minutos = Number(new FormData(qs('#formContratar')).get('duracion')||0);
+  const {precioUser} = calcPrecio(artistaActual, minutos||15);
+  qs('input[name="precio_calculado"]').value = precioUser? ('$'+precioUser) : '';
+});
+qs('#formContratar').addEventListener('submit', async (e)=>{
+  const fd = new FormData(qs('#formContratar')); const minutos = Number(fd.get('duracion')||15);
+  const prices = calcPrecio(artistaActual, minutos); const ref = refContrato();
+  const contrato = {
+    id: uid(), ref, estado: "por confirmar artista", fecha_creacion: new Date().toISOString(),
+    fecha: fd.get('fecha'), hora: fd.get('hora'),
+    usuario_nombres: fd.get('nombres'), usuario_cedula: fd.get('cedula'), usuario_celular: fd.get('celular'),
+    usuario_correo: fd.get('correo'), usuario_ciudad: fd.get('ciudad'), usuario_barrio: fd.get('barrio'),
+    usuario_calles: fd.get('calles'), usuario_referencias: fd.get('referencias'),
+    artista_id: artistaActual.id, artista_nombre: artistaActual.nombre_artistico, artista_correo: artistaActual.correo,
+    minutos, precio_user: prices.precioUser, precio_neto_artista: prices.precioNetoArtista
   };
-
-  async function sendEmail({to=[], subject="Banco de Artistas", html=""}){
-    const r = await GAS({action:'sendEmail', to, subject, html});
-    return r.ok;
-  }
-
-  async function uploadProofToGAS(file, ref){
-    const dataUrl = await new Promise((ok,ko)=>{
-      const fr = new FileReader();
-      fr.onload = ()=> ok(fr.result);
-      fr.onerror = ko;
-      fr.readAsDataURL(file);
+  try{
+    await API.create('contratos', contrato);
+    // correo al ARTISTA con detalles (sin exponer celular del usuario antes de confirmar)
+    sendEmail({
+      to:[artistaActual.correo],
+      subject:`Nuevo contrato recibido: ${ref}`,
+      html:
+        `<h2>Nuevo contrato</h2>
+         <p><strong>Ref:</strong> ${ref}</p>
+         <p><strong>Artista:</strong> ${artistaActual.nombre_artistico}</p>
+         <p><strong>Duración:</strong> ${minutos} min</p>
+         <p><strong>Precio neto para ti:</strong> $${prices.precio_neto_artista||prices.precioNetoArtista}</p>
+         <hr>
+         <p><strong>Evento:</strong> ${fd.get('fecha')} ${fd.get('hora')||''}</p>
+         <p><strong>Ubicación:</strong> ${fd.get('ciudad')} • ${fd.get('barrio')} • ${fd.get('calles')} • ${fd.get('referencias')}</p>
+         <p><strong>Cliente:</strong> ${fd.get('nombres')} • ${fd.get('correo')}</p>
+         <p style="color:#555">Ingresa a "Ingresar como artista" para Aceptar o Rechazar.</p>`
     });
-    const r = await GAS({action:'uploadProof', ref, fileName:file.name, mimeType:file.type||'application/octet-stream', dataUrl});
-    return r;
-  }
-
-  // ======================= UTIL / STATE =======================
-  const state = { artists: [], contracts: [], sessionArtist: null };
-  const qs = s=>document.querySelector(s);
-  const qsa = s=>[...document.querySelectorAll(s)];
-  const toNum = v => { if(v===null||v===undefined) return 0; const s = String(v).replace(',','.'); const n = parseFloat(s); return isNaN(n)?0:n; };
-  function uid(prefix="C"){ const n = Math.floor(Math.random()*1e6).toString().padStart(6,"0"); return prefix + n; }
-  function refContrato(){ const d = new Date(); const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,"0"); const day = String(d.getDate()).padStart(2,"0"); const rnd = Math.random().toString(36).slice(2,6).toUpperCase(); return `BA-${y}${m}${day}-${rnd}`; }
-  function stars(rating){ const f=Math.round(Number(rating||0)); const F = Math.max(0,Math.min(5,f)); return "★".repeat(F)+"☆".repeat(5-F); }
-  function normalizeRow(r){ return {...r,
-      aprobado: String(r.aprobado||'').toLowerCase()==='true' || r.aprobado===true,
-      deleted: String(r.deleted||'').toLowerCase()==='true' || r.deleted===true,
-      rating: toNum(r.rating), votos: parseInt(r.votos||'0')||0,
-      p15: toNum(r.p15), p30: toNum(r.p30), p60: toNum(r.p60), p120: toNum(r.p120) }; }
-  function calcPrecio(artist, minutos){
-    const base = (minutos==15?artist.p15:minutos==30?artist.p30:minutos==60?artist.p60:artist.p120) || 0;
-    const precioUser = Math.round(base*(1+CONFIG.COMMISSION_USER));
-    const precioNetoArtista = Math.round(base*(1-CONFIG.COMMISSION_ARTIST));
-    return {base, precioUser, precioNetoArtista};
-  }
-
-  // ======================= NAV / PWA =======================
-  qsa('[data-open]').forEach(btn=>btn.addEventListener('click', e=>{ qs('#'+e.currentTarget.getAttribute('data-open')).classList.add('active'); window.scrollTo({top:0,behavior:"instant"});}));
-  qsa('[data-back]').forEach(b=>b.addEventListener('click',()=>{ qsa('.view').forEach(v=>v.classList.remove('active')); }));
-  let deferredPrompt=null; window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredPrompt=e;});
-  qs('#installBtn').addEventListener('click', async ()=>{ if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt=null; } else alert('Para instalar, abre el menú del navegador y elige "Añadir a la pantalla de inicio".'); });
-
-  // Admin oculto: triple tap + Ctrl + A
-  (function adminReveal(){
-    let taps=0,timer=null;
-    qs('#logo').addEventListener('click',()=>{
-      taps++; if(timer) clearTimeout(timer);
-      timer=setTimeout(()=>{taps=0},600);
-      if(taps>=3){taps=0; abrirAdminLogin();}
-    });
-    document.addEventListener('keydown',(e)=>{
-      if(e.ctrlKey && (e.key.toLowerCase()==='a')) abrirAdminLogin();
-    });
-  })();
-  function abrirAdminLogin(){ qs('#dlgAdmin').showModal(); }
-  qs('#formAdmin').addEventListener('submit',(e)=>{
-    const pass=new FormData(e.target).get('pass');
-    if(pass===CONFIG.ADMIN_PASSWORD){ qs('#dlgAdmin').close(); qs('#adminView').classList.add('active'); renderAdmin(); }
-    else { e.preventDefault(); alert('Contraseña inválida'); }
-  });
-
-  // ======================= BOOTSTRAP =======================
-  async function bootstrap(){
-    try{
-      const rows = await API.getAll('artistas');
-      state.artists = rows.map(normalizeRow).filter(a=>!a.deleted);
-      renderPeek(); renderExplore();
-    }catch(err){
-      console.error(err);
-      alert("No se pudo cargar datos desde Google Sheets (GAS). Verifica permisos/ID.");
-    }
-  }
-
-  // ======================= EXPLORAR =======================
-  function renderPeek(){
-    const top = [...state.artists].filter(a=>a.aprobado).sort((a,b)=> (b.rating||0)-(a.rating||0)).slice(0,4);
-    const cont = qs('#topRatedPeek'); cont.innerHTML="";
-    top.forEach(a=>{ const el=document.createElement('div'); el.className='pill'; el.innerHTML=`<span class="star">★</span> ${a.nombre_artistico} <span class="muted">(${(a.rating||0).toFixed(1)})</span>`; cont.appendChild(el); });
-  }
-  function renderExplore(){
-    const Grid = qs('#exploreGrid'); Grid.innerHTML="";
-    const t = (qs('#fTipo').value||'').toLowerCase(); const c = (qs('#fCiudad').value||'').toLowerCase(); const q = (qs('#fQuery').value||'').toLowerCase();
-    const list = state.artists.filter(a=>a.aprobado).filter(a=> (!t || (a.tipo_arte||'').toLowerCase()===t) && (!c || (a.ciudad||'').toLowerCase().includes(c)) && (!q || (a.nombre_artistico||'').toLowerCase().includes(q)) );
-    list.forEach(a=>{
-      const card=document.createElement('div'); card.className='artist';
-      const cover = a.foto ? `<div class="cover" style="background-image:url('${a.foto}');background-size:cover;background-position:center"></div>`
-                           : `<div class="cover">${a.nombre_artistico}</div>`;
-      card.innerHTML = `
-        ${cover}
-        <div class="pad">
-          <div class="row"><strong>${a.nombre_artistico}</strong><span class="badge">${a.tipo_arte||''}</span></div>
-          <div class="muted">${a.ciudad||''}</div>
-          <div class="row" style="margin-top:6px"><span class="star">${stars(a.rating||0)}</span><button class="btn primary">Ver artista</button></div>
-        </div>`;
-      card.querySelector('.btn').addEventListener('click',()=> verArtista(a.id));
-      Grid.appendChild(card);
-    });
-  }
-  qs('#fTipo').addEventListener('change', renderExplore);
-  ['#fCiudad','#fQuery'].forEach(id=> qs(id).addEventListener('input', renderExplore));
-
-  // ======================= DETALLE & CONTRATAR =======================
-  let artistaActual=null;
-  const dlgContratar = qs('#dlgContratar');
-
-  function verArtista(id){
-    const a = state.artists.find(x=>x.id===id); artistaActual=a;
-    const v = document.createElement('section'); v.className='view active'; v.id='viewDetalle';
-    const {p15,p30,p60,p120}=a;
-    v.innerHTML = `
-      <div class="topbar wrap"><button class="back" id="backDetalle">← Atrás</button><strong>${a.nombre_artistico}</strong></div>
-      <div class="wrap">
-        <div class="card">
-          <div class="two">
-            <img src="${a.foto||''}" alt="portada" style="width:100%;border-radius:14px;max-height:260px;object-fit:cover" onerror="this.style.display='none'">
-            <div>
-              <div class="chip">${a.tipo_arte} • ${a.ciudad}</div>
-              <div style="margin-top:8px" class="star">${stars(a.rating||0)} <span class="muted">(${a.votos||0} votos)</span></div>
-              <div class="note" style="margin-top:8px">${a.bio||''}</div>
-              <div class="section-title">Tarifas base (sin servicio)</div>
-              <div class="peek"><span class="pill">15m: $${p15}</span><span class="pill">30m: $${p30}</span><span class="pill">60m: $${p60}</span><span class="pill">120m: $${p120}</span></div>
-              <button class="btn primary" id="btnContratar">Contratar</button>
-            </div>
-          </div>
-          <div style="margin-top:12px"><a href="${a.video||'#'}" target="_blank" rel="noopener">Ver video de muestra</a></div>
-        </div>
-      </div>`;
-    document.body.appendChild(v);
-    v.querySelector('#backDetalle').addEventListener('click',()=> v.remove());
-    v.querySelector('#btnContratar').addEventListener('click',()=>{ qs('#contratarNombre').textContent=a.nombre_artistico; dlgContratar.showModal(); });
-  }
-
-  qs('#formContratar').addEventListener('change', ()=>{
-    if(!artistaActual) return;
-    const minutos = Number(new FormData(qs('#formContratar')).get('duracion')||0);
-    const {precioUser} = calcPrecio(artistaActual, minutos||15);
-    qs('input[name="precio_calculado"]').value = precioUser? ('$'+precioUser) : '';
-  });
-
-  qs('#formContratar').addEventListener('submit', async (e)=>{
-    const fd = new FormData(qs('#formContratar'));
-    const minutos = Number(fd.get('duracion')||15);
-    const prices = calcPrecio(artistaActual, minutos);
-    const ref = refContrato();
-    const contrato = {
-      id: uid(),
-      ref,
-      estado: "por confirmar artista",
-      fecha_creacion: new Date().toISOString(),
-      fecha: fd.get('fecha'),
-      hora: fd.get('hora'),
-      usuario_nombres: fd.get('nombres'),
-      usuario_cedula: fd.get('cedula'),
-      usuario_celular: fd.get('celular'),
-      usuario_correo: (fd.get('correo')||"").toLowerCase().trim(),
-      usuario_ciudad: fd.get('ciudad'),
-      usuario_barrio: fd.get('barrio'),
-      usuario_calles: fd.get('calles'),
-      usuario_referencias: fd.get('referencias'),
-      artista_id: artistaActual.id,
-      artista_nombre: artistaActual.nombre_artistico,
-      artista_correo: artistaActual.correo,
-      minutos,
-      precio_user: prices.precioUser,
-      precio_neto_artista: prices.precioNetoArtista
-    };
-    try{
-      await API.create('contratos', contrato);
-
-      // -------- Correo inicial al ARTISTA (sin contacto del usuario) --------
-      await sendEmail({
-        to:[artistaActual.correo],
-        subject:`Nuevo contrato recibido: ${ref}`,
-        html: `
-          <h2>Nuevo contrato por revisar</h2>
-          <p><strong>Ref:</strong> ${ref}</p>
-          <p><strong>Artista:</strong> ${artistaActual.nombre_artistico}</p>
-          <p><strong>Duración del show:</strong> ${minutos} minutos</p>
-          <p><strong>Precio neto para ti:</strong> $${prices.precioNetoArtista}</p>
-          <hr>
-          <h3>Detalles del evento</h3>
-          <p><strong>Fecha/Hora:</strong> ${fd.get('fecha')} ${fd.get('hora')||''}</p>
-          <p><strong>Ciudad:</strong> ${fd.get('ciudad')}</p>
-          <p><strong>Barrio:</strong> ${fd.get('barrio')}</p>
-          <p><strong>Calles:</strong> ${fd.get('calles')}</p>
-          <p><strong>Referencias:</strong> ${fd.get('referencias')}</p>
-          <hr>
-          <p style="color:#777">Los datos de contacto del cliente (correo/teléfono) se liberarán una vez que el administrador valide el pago y confirme el contrato.</p>
-        `
-      });
-
-      alert("Contrato generado. Nº "+ref+" — Revisa su estado en MIS RESERVAS.");
-      dlgContratar.close();
-    }catch(err){ console.error(err); alert("No se pudo crear el contrato (GAS)."); }
-  });
-
-  // ======================= REGISTRAR ARTISTA =======================
-  qs('#formRegistrar').addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const pin = (Math.floor(Math.random()*900000)+100000).toString();
+    alert("Contrato generado. Nº "+ref+" — Revisa su estado en MIS RESERVAS.");
+    dlgContratar.close();
+  }catch(err){ console.error(err); alert("No se pudo crear el contrato en SheetDB."); }
+});
+// ======================= REGISTRAR ARTISTA (con FOTO a Drive) =======================
+qs('#formRegistrar').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const file = qs('#fotoFile').files[0];
+  if(!file){ alert("Selecciona una foto"); return; }
+  const pin = (Math.floor(Math.random()*900000)+100000).toString();
+  try{
+    // 1) subir foto a Drive via GAS
+    const up = await uploadToDrive({action:'uploadPhoto', ref:`A-${Date.now()}`, file});
+    if(!up || !up.ok || !up.url){ alert('No se pudo subir la foto.'); return; }
+    // 2) guardar artista en SheetDB (auto-aprobado para demo)
     const artist = {
-      id: uid('A'),
-      aprobado:true, rating:0, votos:0,
-      foto:fd.get('foto'), video:fd.get('video'),
+      id: uid('A'), aprobado:true, rating:0, votos:0,
+      foto: up.url, video: fd.get('video'),
       nombre_artistico:fd.get('nombre_artistico'), nombre_real:fd.get('nombre_real'),
-      cedula:fd.get('cedula'), ciudad:fd.get('ciudad'),
-      celular:fd.get('celular'), correo:(fd.get('correo')||"").toLowerCase().trim(),
-      tipo_arte:fd.get('tipo_arte'),
+      cedula:fd.get('cedula'), ciudad:fd.get('ciudad'), celular:fd.get('celular'),
+      correo:fd.get('correo'), tipo_arte:fd.get('tipo_arte'),
       p15:Number(fd.get('p15')||0), p30:Number(fd.get('p30')||0), p60:Number(fd.get('p60')||0), p120:Number(fd.get('p120')||0),
       bio:fd.get('bio'), pin, deleted:false
     };
-    try{
-      await API.create('artistas', artist);
-      state.artists.push(artist); renderPeek(); renderExplore();
-      const pinBox = qs('#pinResult'); pinBox.classList.remove('hidden');
-      pinBox.innerHTML = `<span class="ok">✔</span> Registro recibido. Tu PIN: <strong>${pin}</strong>.<br><span class="muted">También se envió por correo (si está configurado).</span>`;
-      await sendEmail({
-        to:[artist.correo],
-        subject:'Tu PIN de acceso - Banco de Artistas',
-        html:`<p>Hola ${artist.nombre_artistico},</p><p>Tu PIN es <strong>${pin}</strong>. Úsalo con tu correo para ingresar como artista.</p>`
-      });
-      e.target.reset();
-    }catch(err){ console.error(err); alert("No se pudo registrar el artista (GAS)."); }
-  });
-
-  // ======================= LOGIN ARTISTA & PANEL =======================
-  const dlgLoginArtista = qs('#dlgLoginArtista');
-  const dlgEditarArtista = qs('#dlgEditarArtista');
-
-  qs('#btnAbrirLoginArtista').addEventListener('click', ()=> dlgLoginArtista.showModal());
-
-  qs('#formLoginArtista').addEventListener('submit', async (e)=>{
-    const fd = new FormData(e.target);
-    const correo = (fd.get('correo')||"").toLowerCase().trim();
-    const pin = (fd.get('pin')||"").trim();
-    try{
-      const res = await API.search('artistas', {correo: correo, pin: pin});
-      if(!res || !res.length){ e.preventDefault(); alert("Credenciales inválidas"); return; }
-      const a = normalizeRow(res[0]); state.sessionArtist = a.id;
-      dlgLoginArtista.close(); await reloadContracts(); renderPanelArtista();
-    }catch(err){ console.error(err); alert("Error al iniciar sesión."); }
-  });
-
-  async function reloadContracts(){ try{ state.contracts = await API.getAll('contratos'); }catch(err){ state.contracts = []; } }
-
-  async function renderPanelArtista(){
-    const id = state.sessionArtist; if(!id) return;
-    const a = state.artists.find(x=>x.id===id) || normalizeRow((await API.search('artistas',{id}))[0]);
-    qs('#panelArtista').classList.remove('hidden');
-    qs('#artistInfo').innerHTML = `
-      <strong>${a.nombre_artistico}</strong> <span class="badge">${a.tipo_arte||''}</span>
-      <div class="muted">${a.ciudad} • ${a.correo}</div>
-      <div class="peek" style="margin-top:8px">
-        <span class="pill">15m $${a.p15}</span><span class="pill">30m $${a.p30}</span>
-        <span class="pill">60m $${a.p60}</span><span class="pill">120m $${a.p120}</span>
-      </div>
-      <div style="margin-top:8px" class="note">PIN: ${a.pin}</div>
-      <div style="margin-top:8px"><button class="btn ghost" id="btnEditarArtista">Editar datos</button></div>`;
-
-    // Editor
-    qs('#btnEditarArtista').onclick = ()=>{
-      const f = qs('#formEditarArtista');
-      ['nombre_artistico','ciudad','tipo_arte','correo','celular','video','foto','cedula','p15','p30','p60','p120','bio'].forEach(k=>{
-        f.elements[k].value = a[k] ?? '';
-      });
-      dlgEditarArtista.showModal();
-      f.onsubmit = async(ev)=>{
-        const fd = new FormData(f);
-        const upd = {};
-        fd.forEach((v,k)=> upd[k]= (k.startsWith('p')? Number(v||0): String(v||'')) );
+    await API.create('artistas', artist);
+    state.artists.push(artist); renderPeek(); renderExplore();
+    const pinBox = qs('#pinResult'); pinBox.classList.remove('hidden');
+    pinBox.innerHTML = `<span class="ok">✔</span> Registro recibido. Tu PIN: <strong>${pin}</strong>.<br><span class="muted">También se envió por correo (si está configurado).</span>`;
+    // Email PIN
+    sendEmail({ to:[artist.correo], subject:'Tu PIN de acceso - Banco de Artistas', html:`<p>Hola ${artist.nombre_artistico},</p><p>Tu PIN es <strong>${pin}</strong>. Úsalo con tu correo para ingresar como artista.</p>` });
+    e.target.reset();
+  }catch(err){ console.error(err); alert("No se pudo registrar el artista."); }
+});
+// ======================= LOGIN ARTISTA & PANEL =======================
+const dlgLoginArtista = qs('#dlgLoginArtista');
+qs('#btnAbrirLoginArtista').addEventListener('click', ()=> dlgLoginArtista.showModal());
+qs('#formLoginArtista').addEventListener('submit', async (e)=>{
+  const fd = new FormData(e.target); const correo = (fd.get('correo')||"").toLowerCase().trim(); const pin = (fd.get('pin')||"").trim();
+  try{
+    const res = await API.search('artistas', {correo: correo, pin: pin});
+    if(!res || !res.length){ e.preventDefault(); alert("Credenciales inválidas"); return; }
+    const a = normalizeRow(res[0]); state.sessionArtist = a.id; dlgLoginArtista.close();
+    await reloadContracts(); renderPanelArtista();
+  }catch(err){ console.error(err); alert("Error al iniciar sesión."); }
+});
+async function reloadContracts(){ try{ state.contracts = await API.getAll('contratos'); }catch(err){ state.contracts = []; } }
+async function renderPanelArtista(){
+  const id = state.sessionArtist; if(!id) return;
+  const a = state.artists.find(x=>String(x.id)===String(id)) || normalizeRow((await API.search('artistas',{id}))[0]);
+  qs('#panelArtista').classList.remove('hidden');
+  qs('#artistInfo').innerHTML =
+   `<strong>${a.nombre_artistico}</strong> <span class="badge">${a.tipo_arte||''}</span>
+    <div class="muted">${a.ciudad} • ${a.correo}</div>
+    <div class="peek" style="margin-top:8px">
+      <span class="pill">15m $${a.p15||0}</span><span class="pill">30m $${a.p30||0}</span>
+      <span class="pill">60m $${a.p60||0}</span><span class="pill">120m $${a.p120||0}</span>
+    </div>
+    <div style="margin-top:8px" class="note">PIN: ${a.pin}</div>`;
+  const cont = qs('#artistContracts'); cont.innerHTML="";
+  const my = state.contracts.filter(c=>String(c.artista_id)===String(id));
+  if(my.length===0){ cont.innerHTML='<div class="note">No hay contratos aún.</div>'; return; }
+  my.forEach(c=>{
+    const div=document.createElement('div'); div.className='card';
+    div.innerHTML =
+    `<div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
+     <div class="muted">Show: ${c.minutos} min • Tu neto: $${c.precio_neto_artista}</div>
+     <div class="note">Evento: ${(c.fecha||'') } ${ (c.hora||'') }</div>
+     <div class="note">Lugar: ${c.usuario_ciudad||''} • ${c.usuario_barrio||''} • ${c.usuario_calles||''} • ${c.usuario_referencias||''}</div>
+     <div class="note">Cliente: ${c.usuario_nombres} ${c.usuario_correo?('• '+c.usuario_correo):''}</div>
+     <div class="peek" style="margin-top:8px">
+       <button class="btn primary" data-accion="aceptar">Aceptar</button>
+       <button class="btn ghost" data-accion="rechazar">Rechazar</button>
+       <button class="btn ghost" data-accion="mensaje">Mensaje</button>
+     </div>`;
+    div.querySelectorAll('button[data-accion]').forEach(b=>{
+      b.addEventListener('click', async ()=>{
+        const act=b.getAttribute('data-accion');
         try{
-          await API.updateById('artistas', a.id, upd);
-          // refresca cache local
-          const idx = state.artists.findIndex(z=>z.id===a.id);
-          if(idx>=0) state.artists[idx] = normalizeRow({...a, ...upd});
-          renderExplore(); renderPeek(); renderPanelArtista();
-        }catch(e){ alert('No se pudo guardar cambios.'); }
-      };
-    };
-
-    // Contratos
-    const cont = qs('#artistContracts'); cont.innerHTML="";
-    const my = state.contracts.filter(c=>String(c.artista_id)===String(id));
-    if(my.length===0){ cont.innerHTML='<div class="note">No hay contratos aún.</div>'; return; }
-    my.forEach(c=>{
-      const div=document.createElement('div'); div.className='card';
-      div.innerHTML = `
-        <div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
-        <div class="muted">Show: ${c.minutos} min • Tu neto: $${c.precio_neto_artista}</div>
-        <div class="note">Evento: ${(c.fecha||'') } ${ (c.hora||'') }</div>
-        <div class="note">Lugar: ${c.usuario_ciudad||''} • ${c.usuario_barrio||''} • ${c.usuario_calles||''} • ${c.usuario_referencias||''}</div>
-        <div class="note">${(String(c.estado).toLowerCase()==='confirmado')
-            ? ('Cliente: '+(c.usuario_nombres||'')+' • '+(c.usuario_correo||'')+' • '+(c.usuario_celular||''))
-            : 'El contacto del cliente se liberará tras la confirmación.'}</div>
-        <div class="peek" style="margin-top:8px">
-          <button class="btn primary" data-accion="aceptar">Aceptar</button>
-          <button class="btn ghost" data-accion="rechazar">Rechazar</button>
-          <button class="btn ghost" data-accion="mensaje">Mensaje</button>
-        </div>
-      `;
-      div.querySelectorAll('button[data-accion]').forEach(b=>{
-        b.addEventListener('click', async ()=>{
-          const act=b.getAttribute('data-accion');
-          try{
-            if(act==='aceptar'){
-              if(c.estado==='por confirmar artista'){
-                if(!window.BA_PATCH){ alert('Patch no cargado.'); return; }
-                await window.BA_PATCH.onArtistAccept(c, 24);
-                await reloadContracts(); renderPanelArtista(); renderAdmin();
-              } else { alert('Este contrato no está en estado "por confirmar artista".'); }
-            }else if(act==='rechazar'){
-              c.estado='rechazado'; await API.updateById('contratos', c.id, {estado:c.estado}); await reloadContracts(); renderPanelArtista(); renderAdmin();
-            }else if(act==='mensaje'){
-              const hookA = document.getElementById('hookMensajesArtista');
-              if (hookA){ hookA.innerHTML = ''; await window.BA_PATCH.openChat(c, 'artista'); hookA.scrollIntoView({behavior:'smooth'}); }
-              else { alert("No se encontró el área de mensajes."); }
-            }
-          }catch(err){ alert("Error al actualizar contrato."); }
-        });
+          if(act==='aceptar'){
+            if(c.estado==='por confirmar artista'){
+              await onArtistAccept(c, 24); // pasa a 'pendiente de pago' + email al usuario
+              await reloadContracts(); renderPanelArtista(); renderAdmin();
+            } else { alert('Este contrato no está en estado "por confirmar artista".'); }
+          }else if(act==='rechazar'){
+            c.estado='rechazado'; await API.updateById('contratos', c.id, {estado:c.estado}); await reloadContracts(); renderPanelArtista(); renderAdmin();
+          }else if(act==='mensaje'){
+            const hookA = document.getElementById('hookMensajesArtista');
+            if (hookA){ hookA.innerHTML = ''; await renderChat(hookA, c, 'artista'); hookA.scrollIntoView({behavior:'smooth'}); }
+            else alert("No se encontró el área de mensajes.");
+          }
+        }catch(err){ alert("Error al actualizar contrato."); }
       });
-      cont.appendChild(div);
     });
-  }
-
-  // ======================= MIS RESERVAS =======================
-  qs('#formLookup').addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const correo = (fd.get('correo')||"").toLowerCase().trim();
-    const ced = (fd.get('cedula')||"").trim();
-    const ref = (fd.get('contrato')||"").trim().toUpperCase();
-    let res = [];
-    try{
-      if(ref){ res = await API.search('contratos', {ref}); }
-      else if(correo){ res = await API.search('contratos', {usuario_correo: correo}); }
-      else if(ced){ res = await API.search('contratos', {usuario_cedula: ced}); }
-      else { res = []; }
-    }catch(err){ res = []; }
-    const box = qs('#lookupResults'); box.innerHTML="";
-    if(!res.length){ box.innerHTML='<div class="note">No se encontraron contratos.</div>'; return; }
-    res.forEach(c=>{
-      const div=document.createElement('div'); div.className='card';
-      const confirmado = (String(c.estado).toLowerCase()==='confirmado');
-      div.innerHTML = `
-        <div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
-        <div class="note">Artista: ${c.artista_nombre}</div>
-        <div class="note">Fecha: ${new Date(c.fecha_creacion).toLocaleDateString()}</div>
-        <div class="note">${ confirmado
-              ? ('Contacto de artista: '+(c.artista_correo||'')+' • '+(state.artists.find(a=>a.id===c.artista_id)?.celular||''))
-              : 'El contacto del artista se liberará una vez confirmado.'}</div>
-        <div class="peek" style="margin-top:8px">
-          ${ (c.estado==='pendiente de pago' || c.estado==='por validar pago' || c.estado==='pago en revisión') ? '<button class="btn primary" data-accion="subir">Subir comprobante</button>' : '' }
-          <button class="btn ghost" data-accion="mensaje">Mensaje</button>
-        </div>
-      `;
-      div.querySelectorAll('button[data-accion]').forEach(b=>{
-        b.addEventListener('click', async ()=>{
-          const act = b.getAttribute('data-accion');
-          try{
-            if(act==='subir'){
-              const inp = document.createElement('input');
-              inp.type = 'file';
-              inp.accept = 'image/*,application/pdf';
-              inp.onchange = async () => {
-                const file = inp.files && inp.files[0];
-                if(!file) return;
-                try{
-                  const jj = await uploadProofToGAS(file, c.ref);
-                  if(!jj || !jj.ok || !jj.url){ alert('No se pudo subir el comprobante.'); return; }
-                  await API.updateById('contratos', c.id, { comprobante_url: jj.url, estado: 'pago en revisión' });
-
-                  await sendEmail({
-                    to:[c.artista_correo],
-                    subject:`Comprobante recibido - ${c.ref}`,
-                    html:`<p>El usuario subió un comprobante para el contrato <strong>${c.ref}</strong>.</p>
-                          <p>Estado: <strong>pago en revisión</strong>.</p>
-                          <p>Comprobante: <a href="${jj.url}">${jj.url}</a></p>`
-                  });
-
-                  alert('Comprobante subido. Estado: pago en revisión.');
-                  renderAdmin && renderAdmin();
-                }catch(e){ console.error(e); alert('Error subiendo comprobante.'); }
-              };
-              inp.click();
-            } else if(act==='mensaje'){
-              const hookU = document.getElementById('hookMensajesUsuario');
-              if (hookU){ hookU.innerHTML = ''; await window.BA_PATCH.openChat(c, 'usuario'); hookU.scrollIntoView({behavior:'smooth'}); }
-              else { alert("No se encontró el área de mensajes."); }
-            }
-          }catch(err){ console.error(err); alert("Error en la acción."); }
-        });
-      });
-      box.appendChild(div);
-    });
+    cont.appendChild(div);
   });
-
-  // ======================= ADMIN =======================
-  async function renderAdmin(){
-    // Artistas
-    const grid = qs('#adminArtists'); grid.innerHTML="";
-    state.artists.forEach(a=>{
-      const card=document.createElement('div'); card.className='artist';
-      const cover = a.foto ? `<div class="cover" style="background-image:url('${a.foto}');background-size:cover;background-position:center"></div>`
-                           : `<div class="cover">${a.nombre_artistico}</div>`;
-      card.innerHTML=`
-        ${cover}
-        <div class="pad">
-          <div class="row"><strong>${a.nombre_artistico}</strong><span class="badge">${a.aprobado? 'aprobado':'pendiente'}</span></div>
-          <div class="muted">${a.tipo_arte} • ${a.ciudad} • ${a.correo}</div>
-          <div class="peek" style="margin-top:8px">
-            <button class="btn primary" data-accion="aprobar">${a.aprobado? 'Quitar aprobación':'Aprobar'}</button>
-            <button class="btn ghost" data-accion="eliminar">Eliminar</button>
-          </div>
-        </div>`;
-      card.querySelectorAll('button[data-accion]').forEach(b=>{
-        b.addEventListener('click', async ()=>{
-          const act = b.getAttribute('data-accion');
-          try{
-            if(act==='aprobar'){
-              a.aprobado = !a.aprobado;
-              await API.updateById('artistas', a.id, {aprobado: a.aprobado});
-            }else if(act==='eliminar'){
-              a.deleted = true;
-              await API.updateById('artistas', a.id, {deleted: true, aprobado:false});
-              state.artists = state.artists.filter(x=>x.id!==a.id);
-            }
-            renderAdmin(); renderExplore(); renderPeek();
-          }catch(err){ alert("Error al actualizar artista."); }
-        });
+}
+// ======================= MIS RESERVAS =======================
+qs('#formLookup').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const correo = (fd.get('correo')||"").toLowerCase().trim(); const ced = (fd.get('cedula')||"").trim(); const ref = (fd.get('contrato')||"").trim().toUpperCase();
+  let res = []; try{
+    if(ref){ res = await API.search('contratos', {ref}); }
+    else if(correo){ res = await API.search('contratos', {usuario_correo: correo}); }
+    else if(ced){ res = await API.search('contratos', {usuario_cedula: ced}); }
+    else res = [];
+  }catch(err){ res = []; }
+  const box = qs('#lookupResults'); box.innerHTML="";
+  if(!res.length){ box.innerHTML='<div class="note">No se encontraron contratos.</div>'; return; }
+  res.forEach(c=>{
+    const visible = c.estado==='confirmado';
+    const div=document.createElement('div'); div.className='card';
+    div.innerHTML =
+     `<div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
+      <div class="note">Artista: ${c.artista_nombre}</div>
+      <div class="note">Fecha: ${new Date(c.fecha_creacion).toLocaleDateString()}</div>
+      <div class="note">${visible? 'Contacto de artista: '+c.artista_correo+' • '+(state.artists.find(a=>a.id===c.artista_id)?.celular||'') : 'El contacto del artista se liberará una vez confirmado.'}</div>
+      <div class="peek" style="margin-top:8px">
+        ${ (c.estado==='pendiente de pago' || c.estado==='por validar pago' || c.estado==='pago en revisión') ? '<button class="btn primary" data-accion="subir">Subir comprobante</button>' : '' }
+        <button class="btn ghost" data-accion="mensaje">Mensaje</button>
+      </div>`;
+    div.querySelectorAll('button[data-accion]').forEach(b=>{
+      b.addEventListener('click', async ()=>{
+        const act = b.getAttribute('data-accion');
+        try{
+          if(act==='subir'){
+            const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*,application/pdf';
+            inp.onchange = async () => {
+              const file = inp.files && inp.files[0]; if(!file) return;
+              try{
+                const jj = await uploadToDrive({action:'uploadProof', ref:c.ref, file});
+                if(!jj || !jj.ok || !jj.url){ alert('No se pudo subir el comprobante.'); return; }
+                await API.updateById('contratos', c.id, { comprobante_url: jj.url, estado: 'pago en revisión' });
+                await sendEmail({
+                  to:[c.artista_correo],
+                  subject:`Comprobante recibido - ${c.ref}`,
+                  html:`<p>El usuario subió un comprobante para el contrato <strong>${c.ref}</strong>.</p>
+                        <p>Estado: <strong>pago en revisión</strong>.</p>
+                        <p>Comprobante: <a href="${jj.url}">${jj.url}</a></p>`
+                });
+                alert('Comprobante subido. Estado: pago en revisión.');
+                renderAdmin && renderAdmin();
+              }catch(e){ console.error(e); alert('Error subiendo comprobante.'); }
+            };
+            inp.click();
+          } else if(act==='mensaje'){
+            const hookU = document.getElementById('hookMensajesUsuario');
+            if (hookU){ hookU.innerHTML = ''; await renderChat(hookU, c, 'usuario'); hookU.scrollIntoView({behavior:'smooth'}); }
+            else alert("No se encontró el área de mensajes.");
+          }
+        }catch(err){ console.error(err); alert("Error en la acción."); }
       });
-      grid.appendChild(card);
     });
-
-    // Contratos
-    const list = qs('#adminContracts'); list.innerHTML="";
-    let contratos=[]; try{ contratos = await API.getAll('contratos'); }catch{ contratos=[]; }
-    contratos.forEach(c=>{
-      const div=document.createElement('div'); div.className='card';
-      div.innerHTML = `
-        <div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
-        <div class="muted">Artista: ${c.artista_nombre} (${c.minutos} min)</div>
-        <div class="muted">Precio usuario: $${c.precio_user} • Neto artista: $${c.precio_neto_artista}</div>
+    box.appendChild(div);
+  });
+});
+// ======================= ADMIN =======================
+async function renderAdmin(){
+  // Artistas
+  const grid = qs('#adminArtists'); grid.innerHTML="";
+  state.artists.forEach(a=>{
+    const card=document.createElement('div'); card.className='artist';
+    card.innerHTML=
+     `<div class="cover" style="background-image:url('${a.foto||''}');background-size:cover;background-position:center"></div>
+      <div class="pad">
+        <div class="row"><strong>${a.nombre_artistico}</strong><span class="badge">${a.aprobado? 'aprobado':'pendiente'}</span></div>
+        <div class="muted">${a.tipo_arte||''} • ${a.ciudad||''} • ${a.correo||''}</div>
         <div class="peek" style="margin-top:8px">
-          <button class="btn ghost" data-accion="a_validar">Marcar “por validar pago”</button>
-          <button class="btn primary" data-accion="confirmar">Confirmar</button>
-          <button class="btn ghost" data-accion="rechazar">Rechazar</button>
-          <button class="btn ghost" data-accion="mensaje">Mensaje</button>
+          <button class="btn primary" data-accion="aprobar">${a.aprobado? 'Quitar aprobación':'Aprobar'}</button>
+          <button class="btn ghost" data-accion="eliminar">Eliminar</button>
         </div>
-      `;
-
-      // Link comprobante + chat admin
-      if(window.BA_PATCH && window.BA_PATCH.augmentAdminCard){
-        window.BA_PATCH.augmentAdminCard(div, c);
-      }
-
-      div.querySelectorAll('button[data-accion]').forEach(b=>{
-        b.addEventListener('click', async ()=>{
-          const act = b.getAttribute('data-accion');
-          try{
-            if(act==='a_validar') c.estado='por validar pago';
-            else if(act==='confirmar') c.estado='confirmado';
-            else if(act==='rechazar') c.estado='rechazado';
-
-            if(act==='mensaje'){
-              if(!window.BA_PATCH){ alert('Patch no cargado.'); return; }
-              await window.BA_PATCH.openChat(c, 'admin');
-              return;
-            }
-
-            await API.updateById('contratos', c.id, {estado:c.estado});
-            if(act==='confirmar'){
-              // Revelar contactos a AMBAS partes por correo
-              await sendEmail({
-                to:[c.usuario_correo],
-                subject:`Contrato ${c.ref} confirmado ✔`,
-                html:`<h2>¡Confirmado!</h2>
-                      <p>Ref: <strong>${c.ref}</strong></p>
-                      <p>Artista: ${c.artista_nombre} • Email: ${c.artista_correo}</p>
-                      <p>Nos vemos el día del evento. ¡Gracias por utilizar Banco de Artistas!</p>`
-              });
-              await sendEmail({
-                to:[c.artista_correo],
-                subject:`Contrato ${c.ref} confirmado ✔`,
-                html:`<h2>¡Confirmado!</h2>
-                      <p>Ref: <strong>${c.ref}</strong></p>
-                      <p>Cliente: ${c.usuario_nombres} • Email: ${c.usuario_correo} • Tel: ${c.usuario_celular}</p>
-                      <p>Éxitos en el show.</p>`
-              });
-            }
-            renderAdmin();
-          }catch(err){ alert("Error al actualizar contrato."); }
-        });
+      </div>`;
+    card.querySelectorAll('button[data-accion]').forEach(b=>{
+      b.addEventListener('click', async ()=>{
+        const act = b.getAttribute('data-accion');
+        try{
+          if(act==='aprobar'){ a.aprobado = !a.aprobado; await API.updateById('artistas', a.id, {aprobado: a.aprobado}); }
+          else if(act==='eliminar'){ a.deleted = true; await API.updateById('artistas', a.id, {deleted: true, aprobado:false}); state.artists = state.artists.filter(x=>x.id!==a.id); }
+          renderAdmin(); renderExplore(); renderPeek();
+        }catch(err){ alert("Error al actualizar artista."); }
       });
-      list.appendChild(div);
     });
+    grid.appendChild(card);
+  });
+  // Contratos
+  const list = qs('#adminContracts'); list.innerHTML="";
+  let contratos=[]; try{ contratos = await API.getAll('contratos'); }catch{ contratos=[]; }
+  contratos.forEach(c=>{
+    const div=document.createElement('div'); div.className='card';
+    let comprobanteLink = c.comprobante_url ? `<div class="note">Comprobante: <a href="${c.comprobante_url}" target="_blank">ver archivo</a></div>` : '';
+    div.innerHTML =
+     `<div class="row"><strong>${c.ref}</strong><span class="badge">${c.estado}</span></div>
+      <div class="muted">Artista: ${c.artista_nombre} (${c.minutos} min)</div>
+      <div class="muted">Precio usuario: $${c.precio_user} • Neto artista: $${c.precio_neto_artista}</div>
+      ${comprobanteLink}
+      <div class="peek" style="margin-top:8px">
+        <button class="btn ghost" data-accion="a_validar">Marcar “por validar pago”</button>
+        <button class="btn primary" data-accion="confirmar">Confirmar</button>
+        <button class="btn ghost" data-accion="rechazar">Rechazar</button>
+        <button class="btn ghost" data-accion="mensaje">Mensaje</button>
+      </div>`;
+    div.querySelectorAll('button[data-accion]').forEach(b=>{
+      b.addEventListener('click', async ()=>{
+        const act = b.getAttribute('data-accion');
+        try{
+          if(act==='a_validar') c.estado='por validar pago';
+          else if(act==='confirmar') c.estado='confirmado';
+          else if(act==='rechazar') c.estado='rechazado';
+          if(act==='mensaje'){
+            const t = prompt("Mensaje interno del admin (visible para las tres partes)");
+            if(!t) return;
+            await API.create('mensajes', {contrato_ref:c.ref, de:'admin', texto:t, ts:new Date().toISOString()});
+            alert("Mensaje enviado."); return;
+          }
+          await API.updateById('contratos', c.id, {estado:c.estado});
+          if(act==='confirmar'){
+            sendEmail({ to:[c.usuario_correo, c.artista_correo], subject:`Contrato ${c.ref} confirmado ✔`,
+              html:`<h2>¡Confirmado!</h2><p>Nos vemos el día del evento, gracias por utilizar <strong>Banco de Artistas</strong>.</p>
+                    <p>Ref: <strong>${c.ref}</strong></p><p>Artista: ${c.artista_nombre} • Minutos: ${c.minutos}</p>` });
+          }
+          renderAdmin();
+        }catch(err){ alert("Error al actualizar contrato."); }
+      });
+    });
+    list.appendChild(div);
+  });
+}
+// ======================= CHAT =======================
+async function renderChat(container, contrato, role){
+  container.innerHTML =
+  `<div class="card">
+     <div class="row"><strong>Mensajes</strong><span class="badge">${contrato.ref}</span></div>
+     <div id="chatList" class="note" style="max-height:220px;overflow:auto;margin-top:8px">Cargando…</div>
+     <div id="chatForm" style="margin-top:8px">
+       <textarea id="chatText" rows="2" placeholder="Escribe un mensaje…"></textarea>
+       <div style="display:flex;gap:8px;margin-top:6px">
+         <button id="chatSend" class="btn primary">Enviar</button>
+         <span id="chatHint" class="note"></span>
+       </div>
+     </div>
+   </div>`;
+  const listEl = container.querySelector('#chatList');
+  const sendBtn = container.querySelector('#chatSend');
+  const textEl = container.querySelector('#chatText');
+  const hintEl = container.querySelector('#chatHint');
+  const canSend = (role==='admin') || (role==='usuario') || (role==='artista' && contrato.estado==='confirmado');
+  if(!canSend){ sendBtn.disabled = true; textEl.disabled = true; hintEl.textContent = 'El artista podrá escribir cuando el contrato esté confirmado.'; }
+  else { hintEl.textContent = ''; }
+  async function load(){
+    try{
+      const msgs = await API.search('mensajes', { contrato_ref: contrato.ref });
+      msgs.sort((a,b)=> (a.ts||'').localeCompare(b.ts||''));
+      if(!msgs.length){ listEl.innerHTML = '<div class="note">Sin mensajes aún.</div>'; return; }
+      listEl.innerHTML = msgs.map(m=>
+        `<div style="margin:6px 0">
+           <strong>${(m.de||'').toUpperCase()}</strong>
+           <span class="muted" style="font-size:.8rem">${m.ts? new Date(m.ts).toLocaleString(): ''}</span>
+           <div>${(m.texto||'').replace(/</g,'&lt;')}</div>
+         </div>`).join('');
+      listEl.scrollTop = listEl.scrollHeight;
+    }catch(e){ listEl.innerHTML = '<div class="danger">No se pudieron cargar mensajes.</div>'; }
   }
-
-  // ======================= INIT & SW =======================
-  bootstrap();
-  if('serviceWorker' in navigator){
-    window.addEventListener('load', ()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
-  }
-  </script>
-
-  <!-- Patch (onArtistAccept + augmentAdminCard + openChat) -->
-  <script src="patches/ba-patch.js"></script>
+  sendBtn.addEventListener('click', async ()=>{
+    const t = (textEl.value||'').trim(); if(!t) return; if(!canSend) return;
+    try{ await API.create('mensajes', { id: uid('M'), contrato_ref: contrato.ref, de: role, texto: t, ts: new Date().toISOString() });
+      textEl.value = ''; await load(); }catch(e){ alert('No se pudo enviar el mensaje.'); }
+  });
+  await load();
+}
+// ======================= LÓGICA: aceptar artista (pasa a pago) =======================
+async function onArtistAccept(contrato, horasLimite=24){
+  if(!contrato) return;
+  await API.updateById('contratos', contrato.id, {estado:'pendiente de pago'});
+  // email al usuario para pedir pago
+  await sendEmail({
+    to:[contrato.usuario_correo],
+    subject:`${contrato.ref} - Aceptado por el artista. Sube tu comprobante`,
+    html:`<h2>Tu contrato fue aceptado ✅</h2>
+          <p>Ref: <strong>${contrato.ref}</strong></p>
+          <p>Artista: ${contrato.artista_nombre} • Minutos: ${contrato.minutos}</p>
+          <p>Por favor sube tu comprobante en "Mis reservas" en las próximas <strong>${horasLimite}h</strong>.</p>`
+  });
+}
+// ======================= INIT & SW =======================
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
+}
+// (Atajo opcional aceptar por data-action="aceptar")
+document.addEventListener('click', async (e)=>{
+  const btn = e.target.closest('[data-action="aceptar"]'); if (!btn) return;
+  const ref = btn.dataset.ref || btn.closest('[data-ref]')?.dataset.ref;
+  if (!ref){ alert('Falta ref del contrato'); return; }
+  try{
+    const r = await fetch(`${CONFIG.SHEETDB_ENDPOINT}/search?sheet=contratos&ref=${encodeURIComponent(ref)}`);
+    const j = await r.json(); const c = j && j[0]; if(!c){ alert('No se encontró el contrato'); return; }
+    await onArtistAccept(c, 24); alert('Contrato aceptado. El usuario tiene 24h para subir su comprobante.');
+  }catch(err){ console.error(err); alert('No se pudo aceptar el contrato.'); }
+});
+</script>
 </body>
 </html>
