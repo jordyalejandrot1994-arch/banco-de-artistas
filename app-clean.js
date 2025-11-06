@@ -1,9 +1,14 @@
-// ======================= CONFIG =======================
+// ========================================================
+// 🚀 BANCO DE ARTISTAS - Frontend Limpio y Estable (2025)
+// Autor: Johanna / Jordy
+// ========================================================
+
+// ======================= CONFIGURACIÓN =======================
 const CONFIG = {
-  SHEETDB_ENDPOINT: "https://sheetdb.io/api/v1/jaa331n4u5icl",
+  SHEETDB_ENDPOINT: "https://sheetdb.io/api/v1/jaa331n4u5icl", // Reemplázalo si cambias SheetDB
+  ADMIN_PASSWORD: "Admin2026",
   COMMISSION_USER: 0.10,
   COMMISSION_ARTIST: 0.05,
-  ADMIN_PASSWORD: "Admin2026",
   BANK: {
     bank: "Banco de Loja",
     account: "2901691001",
@@ -12,9 +17,10 @@ const CONFIG = {
   }
 };
 
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwSQeHCvROms5_FkzffVtltXGDFUZ6UB-i2tYzUopwyzjH5CsHkvK70qdRHyTG82IjC/exec";
+// ✅ Tu nueva URL de Google Apps Script
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyQJDkI1DMOm8m2rMoqB8qC7zbpWj1RJkXvb6N7GsELI0nnsvPfxLkjrNvHmmb85dN2/exec";
 
-// ======================= HELPERS =======================
+// ======================= FUNCIONES AUXILIARES =======================
 const $ = (sel, root=document) => root.querySelector(sel);
 const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
 const uid = (p="A") => p + Math.random().toString(36).slice(2,8).toUpperCase();
@@ -29,7 +35,7 @@ async function gas(action, payload={}) {
     });
     return await r.json().catch(()=>({ok:false}));
   } catch(e) {
-    console.warn("GAS error:", e);
+    console.warn("❌ GAS error:", e);
     return {ok:false,error:String(e)};
   }
 }
@@ -46,7 +52,7 @@ async function sheetPost(row){
   return await r.json();
 }
 
-// ======================= ESTADO =======================
+// ======================= VARIABLES GLOBALES =======================
 let ARTISTAS = [];
 let CONTRATOS = [];
 
@@ -61,6 +67,7 @@ function initTabs(){
       tabs.forEach(t=>t.classList.remove('active'));
       const target = $('#tab-' + btn.dataset.tab);
       if(target){ target.classList.add('active'); }
+      window.scrollTo({top:0,behavior:'smooth'});
     });
   });
 }
@@ -77,7 +84,7 @@ document.addEventListener('keydown', e=>{
 });
 $('#close-admin').onclick=()=>$('#admin').classList.add('hidden');
 
-// ======================= INICIALIZAR =======================
+// ======================= INICIALIZACIÓN =======================
 init();
 async function init(){
   initTabs();
@@ -267,7 +274,7 @@ async function onBuscarReserva(e){
   });
 }
 
-// ======================= ADMIN =======================
+// ======================= PANEL ADMIN =======================
 async function openAdmin(){
   const pass = prompt('Clave de administrador:');
   if(pass!==CONFIG.ADMIN_PASSWORD) return alert('Clave incorrecta');
