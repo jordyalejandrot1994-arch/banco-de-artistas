@@ -1,135 +1,135 @@
 /* ===========================================
-   BANCO DE ARTISTAS - ESTILOS PRINCIPALES
-   Tema oscuro profesional con azul eléctrico
-   Autor: Johanna / Jordy · 2025
+   BANCO DE ARTISTAS - ESTILO GENERAL
+   Tema oscuro con acento azul brillante
 =========================================== */
-
 :root {
   --bg: #0b1220;
   --panel: #0f172a;
   --card: #111827;
   --accent: #0ea5e9;
+  --accent-2: #22d3ee;
   --text: #e2e8f0;
   --muted: #94a3b8;
-  --radius: 12px;
+  --radius: 14px;
+  --shadow: 0 2px 10px rgba(0,0,0,0.4);
+  --transition: all 0.3s ease;
 }
 
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: "Segoe UI", Roboto, sans-serif;
+  font-family: 'Poppins', system-ui, sans-serif;
 }
 
 body {
   background: var(--bg);
   color: var(--text);
-  min-height: 100vh;
-  padding: 1rem;
+  padding-bottom: 80px;
+  overflow-x: hidden;
 }
 
 /* ===========================================
-   ESTRUCTURA GENERAL
+   ENCABEZADO
 =========================================== */
-
 header {
   text-align: center;
-  margin-bottom: 1.5rem;
+  background: var(--panel);
+  padding: 20px 10px;
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 
 header h1 {
   color: var(--accent);
   font-size: 1.8rem;
   font-weight: 700;
+  cursor: pointer;
 }
 
 /* ===========================================
-   NAVEGACIÓN SUPERIOR
+   NAVEGACIÓN PRINCIPAL
 =========================================== */
-
 nav.tabs {
   display: flex;
   justify-content: center;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 1rem;
-  background: transparent;
+  background: var(--panel);
+  padding: 8px;
+  gap: 8px;
+  box-shadow: var(--shadow);
 }
 
 nav.tabs button {
-  background: var(--panel);
-  color: #fff;
-  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--text);
+  border: 1px solid #1f2b46;
   border-radius: var(--radius);
-  padding: 10px 24px;
-  font-weight: 600;
+  padding: 8px 20px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: var(--transition);
 }
 
 nav.tabs button:hover {
   background: var(--accent);
   color: #fff;
-  transform: scale(1.05);
-}
-
-nav.tabs button.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
 }
 
 /* ===========================================
-   FILTROS Y BUSQUEDA
+   BUSCADOR Y FILTROS
 =========================================== */
-
 .filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
   justify-content: center;
-  margin-bottom: 1rem;
+  gap: 10px;
+  margin: 20px auto;
+  max-width: 900px;
 }
 
 .filters input,
 .filters select {
-  background: var(--panel);
-  border: 1px solid #1e293b;
+  padding: 10px 12px;
   border-radius: var(--radius);
+  border: 1px solid #1f2b46;
+  background: var(--card);
   color: var(--text);
-  padding: 10px;
-  min-width: 180px;
   outline: none;
+  transition: var(--transition);
 }
 
-.filters input::placeholder {
-  color: var(--muted);
+.filters input:focus,
+.filters select:focus {
+  border-color: var(--accent);
 }
 
 /* ===========================================
    TARJETAS DE ARTISTAS
 =========================================== */
-
 #cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1rem;
-  padding-bottom: 3rem;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 16px;
+  padding: 20px;
+  max-width: 1200px;
+  margin: auto;
 }
 
 .card {
   background: var(--card);
   border-radius: var(--radius);
-  padding: 1rem;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-  border: 1px solid #1f2b46;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  transition: var(--transition);
+  position: relative;
 }
 
 .card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 16px rgba(14,165,233,0.3);
 }
 
 .card img {
@@ -137,178 +137,225 @@ nav.tabs button.active {
   height: 180px;
   object-fit: cover;
   border-radius: var(--radius);
-  margin-bottom: 0.5rem;
+  border: 1px solid #1f2b46;
+  margin-bottom: 10px;
 }
 
 .card h3 {
   color: var(--accent);
-  margin: 0.3rem 0;
   font-size: 1.2rem;
+  margin-bottom: 4px;
 }
 
 .card .small {
   color: var(--muted);
   font-size: 0.9rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 8px;
 }
 
 .card p {
   font-size: 0.95rem;
-  line-height: 1.4;
-  color: #cbd5e1;
-  margin-bottom: 0.5rem;
+  margin-bottom: 8px;
 }
 
-.card iframe.video {
-  width: 100%;
-  height: 160px;
-  border-radius: var(--radius);
-  border: none;
-  margin-top: 0.4rem;
-}
-
-/* ===========================================
-   BOTONES Y ACCIONES
-=========================================== */
-
-button {
-  cursor: pointer;
-  border: none;
-}
-
-.actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 0.6rem;
+.badge {
+  display: inline-block;
+  background: var(--accent);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  margin: 2px;
 }
 
 button.primary {
   background: var(--accent);
-  color: #fff;
+  color: white;
+  border: none;
   border-radius: var(--radius);
   padding: 8px 16px;
+  cursor: pointer;
+  transition: var(--transition);
   font-weight: 600;
-  transition: 0.2s;
 }
 
 button.primary:hover {
-  filter: brightness(1.1);
-  transform: scale(1.05);
+  background: var(--accent-2);
 }
 
-button.secondary {
-  background: #1e293b;
+button {
+  background: transparent;
+  border: 1px solid #1f2b46;
   color: var(--text);
-  border: 1px solid #334155;
   border-radius: var(--radius);
   padding: 8px 16px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+button:hover {
+  background: var(--accent);
+  color: #fff;
 }
 
 /* ===========================================
    FORMULARIOS
 =========================================== */
-
 form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  max-width: 600px;
+  margin: 20px auto;
+  background: var(--card);
+  padding: 20px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
 
 form label {
-  display: flex;
-  flex-direction: column;
-  font-size: 0.9rem;
-  color: var(--muted);
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
 }
 
 form input,
 form textarea,
 form select {
-  background: var(--panel);
-  border: 1px solid #1f2b46;
-  border-radius: var(--radius);
-  color: var(--text);
+  width: 100%;
+  margin-bottom: 14px;
   padding: 10px;
-  margin-top: 4px;
-  font-size: 1rem;
-  resize: none;
+  border-radius: var(--radius);
+  border: 1px solid #1f2b46;
+  background: #0e1625;
+  color: var(--text);
 }
 
 form input:focus,
 form textarea:focus,
 form select:focus {
   border-color: var(--accent);
-  outline: none;
-}
-
-/* ===========================================
-   MODALES / PANEL ADMIN
-=========================================== */
-
-#admin {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 999;
-}
-
-#admin.hidden {
-  display: none !important;
-}
-
-#admin-content {
-  background: var(--panel);
-  color: var(--text);
-  padding: 1.5rem;
-  border-radius: var(--radius);
-  width: 90%;
-  max-width: 480px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-}
-
-#admin-content h3, #admin-content h4 {
-  margin-bottom: 1rem;
-  color: var(--accent);
 }
 
 .msg {
   color: var(--accent);
   font-weight: 500;
+  text-align: center;
+  margin-top: 6px;
 }
 
 /* ===========================================
-   CLASES AUXILIARES
+   PANEL DE ADMINISTRACIÓN
 =========================================== */
+#admin {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
 
-.badge {
+#admin.hidden {
+  display: none;
+}
+
+#admin-content {
+  background: var(--panel);
+  padding: 24px;
+  border-radius: var(--radius);
+  max-width: 600px;
+  width: 90%;
+  box-shadow: var(--shadow);
+  color: var(--text);
+}
+
+#close-admin {
+  margin-top: 10px;
   background: var(--accent);
   color: #fff;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  padding: 4px 8px;
-  margin-right: 4px;
+  padding: 8px 20px;
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  transition: var(--transition);
 }
 
-.hidden {
-  display: none !important;
+#close-admin:hover {
+  background: var(--accent-2);
 }
 
-.center {
-  text-align: center;
+/* ===========================================
+   TARJETAS DE RESERVAS Y SOLICITUDES
+=========================================== */
+#solicitudes-artista .card,
+#reservas-usuario .card {
+  margin-bottom: 14px;
 }
 
-footer {
-  text-align: center;
-  color: var(--muted);
-  font-size: 0.8rem;
-  margin-top: 2rem;
+/* ===========================================
+   VIDEO EMBED
+=========================================== */
+iframe.video {
+  width: 100%;
+  height: 180px;
+  border-radius: var(--radius);
+  margin-top: 10px;
+  border: 1px solid #1f2b46;
+}
+
+/* ===========================================
+   RESPONSIVE
+=========================================== */
+@media (max-width: 700px) {
+  header h1 {
+    font-size: 1.4rem;
+  }
+
+  nav.tabs button {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+  }
+
+  #cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===========================================
+   VISIBILIDAD DE PESTAÑAS (nuevo)
+=========================================== */
+.tab {
+  display: none;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.tab.active {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tab.active form,
+.tab.active #cards,
+.tab.active .filters {
+  animation: fadeIn 0.4s ease forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+nav.tabs button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(14,165,233,0.4);
 }
