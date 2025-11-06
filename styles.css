@@ -1,202 +1,314 @@
+/* ===========================================
+   BANCO DE ARTISTAS - ESTILOS PRINCIPALES
+   Tema oscuro profesional con azul eléctrico
+   Autor: Johanna / Jordy · 2025
+=========================================== */
+
 :root {
   --bg: #0b1220;
   --panel: #0f172a;
   --card: #111827;
   --accent: #0ea5e9;
-  --text: #f1f5f9;
+  --text: #e2e8f0;
   --muted: #94a3b8;
+  --radius: 12px;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Roboto, sans-serif;
+}
 
 body {
-  margin: 0;
-  font-family: 'Segoe UI', Roboto, sans-serif;
-  background: linear-gradient(180deg, #0b1220, #111827);
+  background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  padding: 1rem;
 }
+
+/* ===========================================
+   ESTRUCTURA GENERAL
+=========================================== */
 
 header {
-  background: var(--panel);
-  padding: 10px 15px;
   text-align: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  margin-bottom: 1.5rem;
 }
 
-h1 {
-  margin: 5px 0 10px;
-  font-size: 1.5em;
+header h1 {
   color: var(--accent);
-  cursor: pointer;
+  font-size: 1.8rem;
+  font-weight: 700;
 }
+
+/* ===========================================
+   NAVEGACIÓN SUPERIOR
+=========================================== */
 
 nav.tabs {
   display: flex;
   justify-content: center;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 10px;
+  margin-bottom: 1rem;
+  background: transparent;
 }
 
 nav.tabs button {
-  background: transparent;
+  background: var(--panel);
+  color: #fff;
   border: 1px solid var(--accent);
-  color: var(--accent);
-  border-radius: 8px;
-  padding: 6px 12px;
+  border-radius: var(--radius);
+  padding: 10px 24px;
+  font-weight: 600;
   cursor: pointer;
-  font-weight: 500;
   transition: all 0.2s ease;
 }
 
-nav.tabs button.active,
 nav.tabs button:hover {
   background: var(--accent);
   color: #fff;
+  transform: scale(1.05);
 }
 
-main {
-  flex: 1;
-  padding: 20px;
+nav.tabs button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
-.tab { display: none; }
-.tab.active { display: block; }
+/* ===========================================
+   FILTROS Y BUSQUEDA
+=========================================== */
 
 .filters {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 15px;
+  justify-content: center;
+  margin-bottom: 1rem;
 }
 
-input, select, textarea, button {
-  font-family: inherit;
-  border-radius: 8px;
-  border: 1px solid #334155;
-  background: #1e293b;
+.filters input,
+.filters select {
+  background: var(--panel);
+  border: 1px solid #1e293b;
+  border-radius: var(--radius);
   color: var(--text);
-  padding: 8px 10px;
-  width: 100%;
+  padding: 10px;
+  min-width: 180px;
+  outline: none;
 }
 
-input:focus, select:focus, textarea:focus {
-  outline: 2px solid var(--accent);
-  border-color: var(--accent);
+.filters input::placeholder {
+  color: var(--muted);
 }
 
-button {
-  cursor: pointer;
-  background: var(--accent);
-  border: none;
-  color: #fff;
-  font-weight: 600;
-  transition: all 0.2s ease;
-}
+/* ===========================================
+   TARJETAS DE ARTISTAS
+=========================================== */
 
-button:hover { opacity: 0.85; }
-
-button.primary {
-  background: var(--accent);
-  color: #fff;
-}
-
-.cards {
+#cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  padding-bottom: 3rem;
 }
 
 .card {
   background: var(--card);
-  border-radius: 12px;
-  padding: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-  transition: transform 0.2s ease;
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  border: 1px solid #1f2b46;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.card:hover { transform: translateY(-3px); }
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.card img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  margin-bottom: 0.5rem;
+}
 
 .card h3 {
   color: var(--accent);
-  margin-bottom: 4px;
+  margin: 0.3rem 0;
+  font-size: 1.2rem;
 }
 
-.badge {
+.card .small {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.card p {
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: #cbd5e1;
+  margin-bottom: 0.5rem;
+}
+
+.card iframe.video {
+  width: 100%;
+  height: 160px;
+  border-radius: var(--radius);
+  border: none;
+  margin-top: 0.4rem;
+}
+
+/* ===========================================
+   BOTONES Y ACCIONES
+=========================================== */
+
+button {
+  cursor: pointer;
+  border: none;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 0.6rem;
+}
+
+button.primary {
   background: var(--accent);
   color: #fff;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 0.8em;
-  margin-right: 3px;
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  font-weight: 600;
+  transition: 0.2s;
 }
 
-.form {
+button.primary:hover {
+  filter: brightness(1.1);
+  transform: scale(1.05);
+}
+
+button.secondary {
+  background: #1e293b;
+  color: var(--text);
+  border: 1px solid #334155;
+  border-radius: var(--radius);
+  padding: 8px 16px;
+}
+
+/* ===========================================
+   FORMULARIOS
+=========================================== */
+
+form {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-width: 500px;
-  margin: auto;
 }
 
-.form.small { max-width: 350px; }
+form label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
 
-.grid2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+form input,
+form textarea,
+form select {
+  background: var(--panel);
+  border: 1px solid #1f2b46;
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 10px;
+  margin-top: 4px;
+  font-size: 1rem;
+  resize: none;
+}
+
+form input:focus,
+form textarea:focus,
+form select:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* ===========================================
+   MODALES / PANEL ADMIN
+=========================================== */
+
+#admin {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+#admin.hidden {
+  display: none !important;
+}
+
+#admin-content {
+  background: var(--panel);
+  color: var(--text);
+  padding: 1.5rem;
+  border-radius: var(--radius);
+  width: 90%;
+  max-width: 480px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+#admin-content h3, #admin-content h4 {
+  margin-bottom: 1rem;
+  color: var(--accent);
 }
 
 .msg {
   color: var(--accent);
-  font-size: 0.9em;
+  font-weight: 500;
+}
+
+/* ===========================================
+   CLASES AUXILIARES
+=========================================== */
+
+.badge {
+  background: var(--accent);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  margin-right: 4px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.center {
   text-align: center;
-}
-
-.hidden { display: none; }
-
-#admin {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.75);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.admin-box {
-  background: var(--panel);
-  padding: 20px;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.admin-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
 }
 
 footer {
-  background: var(--panel);
   text-align: center;
-  padding: 10px;
-  font-size: 0.9em;
   color: var(--muted);
-}
-
-iframe.video {
-  width: 100%;
-  height: 160px;
-  border-radius: 8px;
-  margin-top: 6px;
+  font-size: 0.8rem;
+  margin-top: 2rem;
 }
