@@ -5,109 +5,83 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0ea5e9" />
   <title>Banco de Artistas</title>
-
-  <!-- MANIFEST + ICONOS -->
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="assets/icons/icon-192.png" sizes="192x192">
-  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-
-  <!-- ESTILOS -->
   <link rel="stylesheet" href="style-v2.css">
 </head>
-<body>
 
-  <!-- ENCABEZADO -->
+<body>
   <header>
     <h1>Banco de Artistas</h1>
   </header>
 
-  <!-- NAVEGACIÓN PRINCIPAL -->
+  <!-- NAV -->
   <nav class="tabs">
     <button data-tab="explorar" class="active">Explorar</button>
-    <button data-tab="registro">Registrar Artista</button>
-    <button data-tab="login">Ingresar Artista</button>
+    <button data-tab="registrar">Registrar Artista</button>
+    <button data-tab="ingresar">Ingresar Artista</button>
     <button data-tab="reservas">Mis Reservas</button>
   </nav>
 
-  <!-- CONTENEDOR DE SECCIONES -->
-  <main>
-    <!-- TAB EXPLORAR -->
-    <section id="tab-explorar" class="tab active">
-      <div class="filters">
-        <input id="q" type="text" placeholder="Buscar por nombre, ciudad o tipo...">
-        <select id="f-ciudad">
-          <option value="">Todas las ciudades</option>
-        </select>
-        <select id="f-tipo">
-          <option value="">Todos los tipos</option>
-        </select>
-      </div>
-      <div id="cards"></div>
-    </section>
-
-    <!-- TAB REGISTRAR ARTISTA -->
-    <section id="tab-registro" class="tab">
-      <form id="form-registro">
-        <label>Nombre artístico <input name="nombre_artistico" required></label>
-        <label>Nombre real <input name="nombre_real" required></label>
-        <label>Cédula <input name="cedula" required></label>
-        <label>Ciudad <input name="ciudad" required></label>
-        <label>Correo <input type="email" name="correo" required></label>
-        <label>Celular <input name="celular" required></label>
-        <label>Tipo de arte <input name="tipo_arte" required></label>
-        <label>Precio 15 min <input type="number" name="p15" required></label>
-        <label>Precio 30 min <input type="number" name="p30" required></label>
-        <label>Precio 60 min <input type="number" name="p60" required></label>
-        <label>Precio 120 min <input type="number" name="p120" required></label>
-        <label>Biografía / Descripción <textarea name="bio" rows="3"></textarea></label>
-        <label>Foto (URL) <input name="foto" placeholder="https://..."></label>
-        <label>Video (YouTube) <input name="video" placeholder="https://youtube.com/..."></label>
-        <div class="actions">
-          <button type="submit" class="primary">Registrar</button>
-        </div>
-        <p id="msg-registro" class="msg"></p>
-      </form>
-    </section>
-
-    <!-- TAB LOGIN ARTISTA -->
-    <section id="tab-login" class="tab">
-      <form id="form-login-artista">
-        <label>Cédula <input name="cedula" required></label>
-        <label>PIN <input name="pin" required></label>
-        <div class="actions">
-          <button type="submit" class="primary">Ingresar</button>
-        </div>
-        <p id="msg-login" class="msg"></p>
-      </form>
-
-      <div id="panel-artista" class="hidden">
-        <h3>Solicitudes recibidas</h3>
-        <div id="solicitudes-artista"></div>
-      </div>
-    </section>
-
-    <!-- TAB MIS RESERVAS -->
-    <section id="tab-reservas" class="tab">
-      <form id="form-buscar-reserva">
-        <label>Correo con el que hiciste la reserva <input type="email" name="correo" required></label>
-        <div class="actions">
-          <button type="submit" class="primary">Buscar</button>
-        </div>
-      </form>
-      <div id="reservas-usuario"></div>
-    </section>
-  </main>
-
-  <!-- PANEL ADMIN -->
-  <section id="admin" class="hidden">
-    <div id="admin-content">
-      <h3>Panel de Administración</h3>
-      <button id="close-admin" class="primary">Cerrar</button>
+  <!-- SECCIÓN EXPLORAR -->
+  <div class="tab active" id="tab-explorar">
+    <div class="filters">
+      <input id="q" type="text" placeholder="Buscar por nombre, ciudad o tipo...">
+      <select id="f-ciudad"><option value="">Todas las ciudades</option></select>
+      <select id="f-tipo"><option value="">Todos los tipos</option></select>
     </div>
-  </section>
+    <section id="cards"></section>
+  </div>
 
-  <!-- SCRIPT PRINCIPAL -->
+  <!-- SECCIÓN REGISTRO -->
+  <div class="tab" id="tab-registrar">
+    <form id="form-registro">
+      <label>Nombre artístico<input name="nombre_artistico" required></label>
+      <label>Nombre real<input name="nombre_real" required></label>
+      <label>Cédula<input name="cedula" required></label>
+      <label>Ciudad<input name="ciudad" required></label>
+      <label>Correo<input type="email" name="correo" required></label>
+      <label>Celular<input name="celular" required></label>
+      <label>Tipo de arte<input name="tipo_arte" required></label>
+      <label>Precio 15 min<input name="p15" required></label>
+      <label>Precio 30 min<input name="p30" required></label>
+      <label>Precio 60 min<input name="p60" required></label>
+      <label>Precio 120 min<input name="p120" required></label>
+      <label>Biografía / Descripción<textarea name="bio"></textarea></label>
+      <label>Foto (URL)<input name="foto" placeholder="https://..."></label>
+      <label>Video (YouTube)<input name="video" placeholder="https://youtube.com/..."></label>
+      <button class="primary" type="submit">Registrar</button>
+      <p id="msg-registro" class="msg"></p>
+    </form>
+  </div>
+
+  <!-- SECCIÓN INGRESAR ARTISTA -->
+  <div class="tab" id="tab-ingresar">
+    <form id="form-login-artista">
+      <label>Cédula<input name="cedula" required></label>
+      <label>PIN<input name="pin" required></label>
+      <button class="primary" type="submit">Ingresar</button>
+      <p id="msg-login" class="msg"></p>
+    </form>
+    <div id="panel-artista" class="hidden">
+      <h3>Solicitudes recibidas</h3>
+      <div id="solicitudes-artista"></div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN RESERVAS -->
+  <div class="tab" id="tab-reservas">
+    <form id="form-buscar-reserva">
+      <label>Correo con el que hiciste la reserva<input name="correo" type="email" required></label>
+      <button class="primary" type="submit">Buscar</button>
+    </form>
+    <div id="reservas-usuario"></div>
+  </div>
+
+  <!-- PANEL DE ADMIN -->
+  <div id="admin" class="hidden">
+    <div id="admin-content"></div>
+    <button id="close-admin">Cerrar</button>
+  </div>
+
   <script src="app-clean.js"></script>
-
 </body>
 </html>
