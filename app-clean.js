@@ -5,7 +5,7 @@
 
 // ======================= CONFIGURACIÓN =======================
 const CONFIG = {
-  SHEETDB_ENDPOINT: "https://sheetdb.io/api/v1/jaa331n4u5icl", // Reemplázalo si cambias SheetDB
+  SHEETDB_ENDPOINT: "https://sheetdb.io/api/v1/jaa331n4u5icl", // cambiar si usas otro
   ADMIN_PASSWORD: "Admin2026",
   COMMISSION_USER: 0.10,
   COMMISSION_ARTIST: 0.05,
@@ -17,8 +17,8 @@ const CONFIG = {
   }
 };
 
-// ✅ Tu nueva URL de Google Apps Script
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyQJDkI1DMOm8m2rMoqB8qC7zbpWj1RJkXvb6N7GsELI0nnsvPfxLkjrNvHmmb85dN2/exec";
+// ✅ Tu nueva URL de GAS
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyjWTTEG60IzzJspv5_9F4_nfjt4BbDHHzdqNFwU_4TPpFhwMM__BFU35twPxJqwsYK/exec";
 
 // ======================= FUNCIONES AUXILIARES =======================
 const $ = (sel, root=document) => root.querySelector(sel);
@@ -46,8 +46,8 @@ async function sheetGet(){
 }
 async function sheetPost(row){
   const r = await fetch(CONFIG.SHEETDB_ENDPOINT,{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({data:[row]})
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({data:[row]})
   });
   return await r.json();
 }
@@ -82,7 +82,7 @@ $('header h1').addEventListener('click', ()=>{
 document.addEventListener('keydown', e=>{
   if(e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='a'){ openAdmin(); }
 });
-$('#close-admin').onclick=()=>$('#admin').classList.add('hidden');
+$('#close-admin').onclick = () => $('#admin').classList.add('hidden');
 
 // ======================= INICIALIZACIÓN =======================
 init();
@@ -115,7 +115,7 @@ function renderFiltros(){
 
 function renderCards(){
   const q = $('#q').value.toLowerCase();
-  const fc = $('#f-ciudad').value; 
+  const fc = $('#f-ciudad').value;
   const ft = $('#f-tipo').value;
   const cont = $('#cards');
   cont.innerHTML = '';
@@ -161,7 +161,8 @@ async function onRegistro(e){
   const data = Object.fromEntries(new FormData(f));
   const id = uid('A');
   const pin = pin6();
-  const row = { id,
+  const row = {
+    id,
     aprobado:"TRUE", rating:"0", votos:"0",
     foto:data.foto, video:data.video,
     nombre_artistico:data.nombre_artistico, nombre_real:data.nombre_real,
@@ -169,17 +170,16 @@ async function onRegistro(e){
     tipo_arte:data.tipo_arte, p15:data.p15, p30:data.p30, p60:data.p60, p120:data.p120,
     bio:data.bio, pin, deleted:"FALSE"
   };
-  try{
+  try {
     await sheetPost(row);
     $('#msg-registro').textContent = '✅ Registro exitoso. Revisa tu correo para tu PIN.';
-    await gas('sendPin',{to:[data.correo], artista:data.nombre_artistico, pin});
+    await gas('sendPin', { to:[data.correo], artista:data.nombre_artistico, pin });
     await cargarArtistas(); renderCards(); f.reset();
   } catch(err){
     $('#msg-registro').textContent = '⚠️ Error al registrar.';
   }
 }
 
-// ======================= SOLICITUD DE CONTRATACIÓN =======================
 function abrirSolicitud(artistaId){
   const a = ARTISTAS.find(x=>x.id===artistaId);
   if(!a) return;
@@ -198,29 +198,28 @@ function abrirSolicitud(artistaId){
         <p id="msg-solicitud" class="msg"></p>
       </form>
     </div>`;
-  const panel = $('#admin');
   $('#admin-content').innerHTML = html;
-  panel.classList.remove('hidden');
+  $('#admin').classList.remove('hidden');
   $('#form-solicitud').onsubmit = async (e)=>{
     e.preventDefault();
     const fd = Object.fromEntries(new FormData(e.target));
     const contrato = {
       id: uid('C'),
-      artista_id:a.id,
-      artista_nombre:a.nombre_artistico,
-      artista_correo:a.correo,
-      usuario_nombre:fd.usuario_nombre,
-      usuario_correo:fd.usuario_correo,
-      usuario_celular:fd.usuario_celular,
-      ciudad:fd.ciudad_evento,
-      fecha:fd.fecha_evento,
-      duracion:fd.duracion,
-      mensaje:fd.mensaje||'',
+      artista_id: a.id,
+      artista_nombre: a.nombre_artistico,
+      artista_correo: a.correo,
+      usuario_nombre: fd.usuario_nombre,
+      usuario_correo: fd.usuario_correo,
+      usuario_celular: fd.usuario_celular,
+      ciudad: fd.ciudad_evento,
+      fecha: fd.fecha_evento,
+      duracion: fd.duracion,
+      mensaje: fd.mensaje||'',
       estado:'por confirmar artista'
     };
     CONTRATOS.push(contrato);
     $('#msg-solicitud').textContent = '✅ Solicitud enviada. Espere confirmación.';
-    await gas('notifyNewBooking',{
+    await gas('notifyNewBooking', {
       to:[a.correo],
       artista:a.nombre_artistico,
       fecha:contrato.fecha,
@@ -231,10 +230,9 @@ function abrirSolicitud(artistaId){
   };
 }
 
-// ======================= LOGIN ARTISTA =======================
 async function onLoginArtista(e){
   e.preventDefault();
-  const {cedula,pin} = Object.fromEntries(new FormData(e.target));
+  const {cedula, pin} = Object.fromEntries(new FormData(e.target));
   const artista = ARTISTAS.find(a=>a.cedula===cedula && a.pin===pin);
   if(!artista){ $('#msg-login').textContent='Datos incorrectos'; return; }
   $('#msg-login').textContent='Bienvenido';
@@ -244,27 +242,25 @@ async function onLoginArtista(e){
 
 function renderSolicitudesArtista(artista){
   const cont = $('#solicitudes-artista');
-  cont.innerHTML='';
+  cont.innerHTML = '';
   CONTRATOS.filter(c=>c.artista_id===artista.id && c.estado==='por confirmar artista').forEach(c=>{
-    const card=document.createElement('div');
-    card.className='card';
-    card.innerHTML=`
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
       <div><b>${c.usuario_nombre}</b> solicita show de ${c.duracion} min el ${c.fecha} en ${c.ciudad}</div>
-      <div class="actions">
-        <button class="primary" onclick="aceptarContrato('${c.id}','${artista.id}')">Aceptar</button>
-      </div>`;
+      <div class="actions"><button class="primary" onclick="aceptarContrato('${c.id}','${artista.id}')">Aceptar</button></div>
+    `;
     cont.appendChild(card);
   });
 }
 
-// ======================= RESERVAS =======================
 async function onBuscarReserva(e){
   e.preventDefault();
   const correo = new FormData(e.target).get('correo');
   const list = CONTRATOS.filter(c=>c.usuario_correo===correo);
   const cont = $('#reservas-usuario');
-  cont.innerHTML='';
-  if(!list.length){ cont.innerHTML='<div class="card">No se encontraron reservas.</div>'; return; }
+  cont.innerHTML = '';
+  if(!list.length){ cont.innerHTML = '<div class="card">No se encontraron reservas.</div>'; return; }
   list.forEach(c=>{
     cont.insertAdjacentHTML('beforeend',`
       <div class="card">
@@ -274,7 +270,29 @@ async function onBuscarReserva(e){
   });
 }
 
-// ======================= PANEL ADMIN =======================
+async function aceptarContrato(cid, artistaId){
+  const c = CONTRATOS.find(x=>x.id===cid);
+  const artista = ARTISTAS.find(a=>a.id===artistaId);
+  if(!c || !artista) return;
+  c.estado = 'por validar pago';
+  await gas('notifyUserPayment', {
+    to:[c.usuario_correo],
+    usuario:c.usuario_nombre,
+    artista: artista.nombre_artistico,
+    banco: CONFIG.BANK.bank,
+    cuenta: CONFIG.BANK.account,
+    titular: CONFIG.BANK.holder,
+    cedula: CONFIG.BANK.id
+  });
+  await gas('notifyAdminPayment', {
+    to:["jordyalejandrot1994@gmail.com"],
+    usuario:c.usuario_nombre,
+    artista: artista.nombre_artistico
+  });
+  alert('✅ Solicitud aceptada. El usuario fue notificado para realizar el pago.');
+  renderSolicitudesArtista(artista);
+}
+
 async function openAdmin(){
   const pass = prompt('Clave de administrador:');
   if(pass!==CONFIG.ADMIN_PASSWORD) return alert('Clave incorrecta');
@@ -284,5 +302,36 @@ async function openAdmin(){
 
 function renderAdmin(){
   const cont = $('#admin-content');
-  cont.innerHTML='<h4>Panel de administración</h4><p>Por ahora sin registros.</p>';
+  const pend = CONTRATOS.filter(c=>c.estado==='por validar pago');
+  cont.innerHTML = '<h4>Pendientes de validar pago</h4>';
+  pend.forEach(c=>{
+    cont.insertAdjacentHTML('beforeend',`
+      <div class="card">
+        <div><b>${c.artista_nombre}</b> ←→ <b>${c.usuario_nombre}</b></div>
+        <div class="small">Fecha: ${c.fecha} • ${c.ciudad} • ${c.duracion} min</div>
+        <div>Comprobante: ${c.comprobante_url||'—'}</div>
+        <div class="actions"><button class="primary" data-id="${c.id}">Marcar como pagado</button></div>
+      `);
+  });
+  $$('#admin-content button.primary').forEach(b=>{
+    b.onclick = async ()=>{
+      const cid = b.dataset.id;
+      const c = CONTRATOS.find(x=>x.id===cid);
+      if(!c) return;
+      c.estado = 'confirmado';
+      const artista = ARTISTAS.find(a=>a.id===c.artista_id);
+      await gas('notifyConfirmed', {
+        toUser:[c.usuario_correo],
+        toArtist:[artista.correo],
+        artista_nombre: artista.nombre_artistico,
+        artista_correo: artista.correo,
+        artista_celular: artista.celular,
+        usuario_nombre: c.usuario_nombre,
+        usuario_correo: c.usuario_correo,
+        usuario_celular: c.usuario_celular
+      });
+      alert('✅ Contrato confirmado y contactos liberados.');
+      renderAdmin();
+    };
+  });
 }
