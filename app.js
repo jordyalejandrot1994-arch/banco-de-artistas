@@ -15,15 +15,18 @@ const CONFIG = {
 // ======================= GAS (EMAIL/DRIVE) =======================
 const GAS_URL = "https://script.google.com/macros/s/AKfycbwSQeHCvROms5_FkzffVtltXGDFUZ6UB-i2tYzUopwyzjH5CsHkvK70qdRHyTG82IjC/exec";
 
-async function gas(action, payload={}){
-  try{wait fetch(GAS_URL, {
+async function gas(action, payload={}) {
+  try {
+    const r = await fetch(GAS_URL, {
       method: 'POST',
-      headers: {'Content-Type':'text/plain
-    const r = a;charset=utf-8'},
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
       body: JSON.stringify({ action, ...payload })
     });
     return await r.json().catch(()=>({ok:false}));
-  }catch(e){ console.warn("GAS error:", e); return {ok:false, error: String(e)} }
+  } catch(e) {
+    console.warn("GAS error:", e);
+    return {ok:false, error: String(e)};
+  }
 }
 
 // ======================= HELPERS =======================
