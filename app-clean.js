@@ -152,12 +152,18 @@ function renderCards() {
 
     // ✅ Corrección Drive
     let fotoFinal = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
-    if (a.foto && a.foto.includes("drive.google.com")) {
-      fotoFinal = a.foto;
-    } else if (a.foto && a.foto.startsWith("http")) {
-      fotoFinal = a.foto;
-    }
 
+if (a.foto && a.foto.includes("drive.google.com")) {
+  // Extrae el ID del enlace de Drive (funciona con view?usp=drive_link o file/d/)
+  const match = a.foto.match(/\/d\/([a-zA-Z0-9_-]+)/) || a.foto.match(/id=([a-zA-Z0-9_-]+)/);
+  if (match) {
+    const id = match[1];
+    fotoFinal = `https://drive.google.com/uc?export=view&id=${id}`;
+  }
+} else if (a.foto && a.foto.startsWith("http")) {
+  fotoFinal = a.foto;
+}
+    
     cont.insertAdjacentHTML(
       "beforeend",
       `
