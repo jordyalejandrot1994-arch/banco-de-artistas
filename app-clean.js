@@ -180,10 +180,14 @@ function renderCards() {
       `
       <article class="card">
         <img 
-          src="${fotoFinal}" 
-          alt="${a.nombre_artistico || "Artista"}"
-          style="width:100%;height:180px;object-fit:cover;border-radius:12px;border:1px solid #1f2b46"
-          onerror="this.src='https://cdn-icons-png.flaticon.com/512/847/847969.png'">
+  src="${a.foto 
+    ? (a.foto.includes('drive.google.com') 
+        ? a.foto.replace('/view?usp=sharing', '').replace('/file/d/', '/uc?export=view&id=') 
+        : a.foto)
+    : 'https://cdn-icons-png.flaticon.com/512/847/847969.png'}"
+  alt="${a.nombre_artistico || 'Artista'}"
+  style="width:100%;height:180px;object-fit:cover;border-radius:12px;border:1px solid #1f2b46"
+  onerror="this.src='https://cdn-icons-png.flaticon.com/512/847/847969.png'">
         <h3>${a.nombre_artistico || ""}</h3>
         <div class="small">${(a.tipo_arte || "")
           .split(",")
