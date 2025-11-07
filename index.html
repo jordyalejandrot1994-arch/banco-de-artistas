@@ -46,7 +46,9 @@
       <label>Precio 60 min<input name="p60" required></label>
       <label>Precio 120 min<input name="p120" required></label>
       <label>Biografía / Descripción<textarea name="bio"></textarea></label>
-      <label>Foto (URL)<input name="foto" placeholder="https://..."></label>
+      <label>Foto del artista
+  <input type="file" name="fotoFile" accept="image/*" required>
+</label>
       <label>Video (YouTube)<input name="video" placeholder="https://youtube.com/..."></label>
       <button class="primary" type="submit">Registrar</button>
       <p id="msg-registro" class="msg"></p>
