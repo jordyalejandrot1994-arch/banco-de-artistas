@@ -1,12 +1,15 @@
 /* ==========================================================
-   BANCO DE ARTISTAS - APP CLEAN (versión estable sin fotos)
+   BANCO DE ARTISTAS - APP CLEAN (versión mejorada 2025)
    ========================================================== */
 
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyjWTTEG60IzzJspv5_9F4_nfjt4BbDHHzdqNFwU_4TPpFhwMM__BFU35twPxJqwsYK/exec";
-const SHEETDB_URL = "https://sheetdb.io/api/v1/XXXXXXXXXXXX"; // 👈 reemplaza con tu endpoint real
+const SHEETDB_URL = "https://sheetdb.io/api/v1/jaa331n4u5icl";
+
 let ARTISTAS = [];
 let RESERVAS = [];
 let modoAdmin = false;
+
+// ------------------ UTILIDADES BÁSICAS ------------------
 
 const $ = (q) => document.querySelector(q);
 const $$ = (q) => document.querySelectorAll(q);
@@ -19,9 +22,8 @@ function notify(msg, ok = true) {
   setTimeout(() => box.remove(), 4000);
 }
 
-/* ========================
-   🔹 Render de estrellas
-======================== */
+// ------------------ ESTRELLAS ------------------
+
 function renderStarsDisplay(rating = 0) {
   let html = "";
   for (let i = 1; i <= 5; i++) {
@@ -30,9 +32,37 @@ function renderStarsDisplay(rating = 0) {
   return html;
 }
 
-/* ========================
-   🔹 Cargar artistas
-======================== */
+// ------------------ CONVERSIÓN BASE64 ------------------
+
+function toBase64(file) {
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => res(reader.result.split(",")[1]);
+    reader.onerror = (err) => rej(err);
+  });
+}
+
+// ------------------ SUBIR IMAGEN A DRIVE ------------------
+
+async function uploadImageToDrive(file, folder = "artists") {
+  const base64 = await toBase64(file);
+  const data = {
+    action: "uploadImage",
+    base64,
+    fileName: file.name,
+    mimeType: file.type,
+    folder
+  };
+  const res = await fetch(GAS_URL, {
+    method: "POST",
+    body: JSON.stringify(data)
+  });
+  return await res.json();
+}
+
+// ------------------ CARGAR ARTISTAS ------------------
+
 async function loadArtistas() {
   try {
     const res = await fetch(SHEETDB_URL);
@@ -44,9 +74,8 @@ async function loadArtistas() {
   }
 }
 
-/* ========================
-   🔹 Renderizar artistas
-======================== */
+// ------------------ MOSTRAR TARJETAS ------------------
+
 function renderCards() {
   const q = $("#q")?.value?.toLowerCase() || "";
   const fc = $("#f-ciudad")?.value || "";
@@ -70,17 +99,28 @@ function renderCards() {
     const rating = Number(a.rating || 0);
     const stars = renderStarsDisplay(rating);
 
+    // 🔹 NUEVA LÓGICA DE FOTOS (funciona con Drive, directas o vacías)
+    let fotoFinal = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
+    if (a.foto) {
+      if (a.foto.includes("drive.google.com")) {
+        const match = a.foto.match(/\/d\/([a-zA-Z0-9_-]+)/) || a.foto.match(/id=([a-zA-Z0-9_-]+)/);
+        if (match) fotoFinal = `https://drive.google.com/uc?export=view&id=${match[1]}`;
+      } else if (a.foto.startsWith("http")) {
+        fotoFinal = a.foto;
+      }
+    }
+
     const precios = `
-      <span class="badge">15m $${a.p15}</span>
-      <span class="badge">30m $${a.p30}</span>
-      <span class="badge">60m $${a.p60}</span>
-      <span class="badge">120m $${a.p120}</span>
+      <span class="badge">15m $${Math.round(a.p15 * 1.1)}</span>
+      <span class="badge">30m $${Math.round(a.p30 * 1.1)}</span>
+      <span class="badge">60m $${Math.round(a.p60 * 1.1)}</span>
+      <span class="badge">120m $${Math.round(a.p120 * 1.1)}</span>
     `;
 
     cont.insertAdjacentHTML("beforeend", `
       <article class="card">
         <img 
-          src="${a.foto && a.foto.startsWith('http') ? a.foto : 'https://cdn-icons-png.flaticon.com/512/847/847969.png'}" 
+          src="${fotoFinal}" 
           alt="${a.nombre_artistico}" 
           style="width:100%;height:180px;object-fit:cover;border-radius:12px;border:1px solid #1f2b46"
           onerror="this.src='https://cdn-icons-png.flaticon.com/512/847/847969.png'">
@@ -100,45 +140,13 @@ function renderCards() {
   );
 }
 
-/* ========================
-   🔹 Subir imagen a Drive (foto artista o comprobante)
-======================== */
-async function uploadImageToDrive(file, folder = "artists") {
-  const base64 = await toBase64(file);
-  const data = {
-    action: "uploadImage",
-    base64,
-    fileName: file.name,
-    mimeType: file.type,
-    folder
-  };
-  const res = await fetch(GAS_URL, {
-    method: "POST",
-    body: JSON.stringify(data)
-  });
-  return await res.json();
-}
+// ------------------ REGISTRO DE ARTISTA ------------------
 
-/* ========================
-   🔹 Convertir a Base64
-======================== */
-function toBase64(file) {
-  return new Promise((res, rej) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => res(reader.result.split(",")[1]);
-    reader.onerror = (err) => rej(err);
-  });
-}
-
-/* ========================
-   🔹 Registrar artista
-======================== */
 $("#form-registro")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
 
-  // Subir foto si existe
+  // Subir foto a Drive
   let fotoUrl = "";
   const file = fd.get("foto");
   if (file && file.size > 0) {
@@ -146,8 +154,8 @@ $("#form-registro")?.addEventListener("submit", async (e) => {
     if (res.ok) fotoUrl = res.url;
   }
 
-  fd.append("foto", fotoUrl);
   const body = Object.fromEntries(fd.entries());
+  body.foto = fotoUrl;
   body.pin = Math.floor(1000 + Math.random() * 9000);
   body.aprobado = "SI";
 
@@ -172,9 +180,8 @@ $("#form-registro")?.addEventListener("submit", async (e) => {
   loadArtistas();
 });
 
-/* ========================
-   🔹 Contratar artista
-======================== */
+// ------------------ CONTRATACIÓN ------------------
+
 async function openContratacion(id) {
   const artista = ARTISTAS.find(a => a.id === id);
   if (!artista) return notify("Artista no encontrado ❌", false);
@@ -231,9 +238,8 @@ async function openContratacion(id) {
   };
 }
 
-/* ========================
-   🔹 Panel de reservas
-======================== */
+// ------------------ PANEL DE RESERVAS ------------------
+
 $("#form-reservas")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const correo = $("#correoReserva").value.trim();
@@ -277,9 +283,8 @@ function renderReservas() {
   );
 }
 
-/* ========================
-   🔹 Calificación artistas
-======================== */
+// ------------------ CALIFICACIÓN ------------------
+
 function renderRatingForm(artistaId) {
   const modal = document.createElement("div");
   modal.className = "modal";
@@ -313,7 +318,6 @@ function renderRatingForm(artistaId) {
   };
 }
 
-/* ========================
-   🔹 Inicialización
-======================== */
+// ------------------ INICIALIZACIÓN ------------------
+
 window.addEventListener("DOMContentLoaded", loadArtistas);
