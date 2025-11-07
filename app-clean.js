@@ -151,24 +151,31 @@ function renderCards() {
       <span class="badge">60m $${a.p60}</span>
       <span class="badge">120m $${a.p120}</span>
     `;
-
-        // 🔹 Nueva lógica de imagen — Detecta ID de Google Drive y genera URL visible
+    
+    // 🔹 Nueva lógica Drive mejorada: convierte cualquier enlace de Drive a formato visible
     let fotoFinal = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
-    if (a.foto) {
+    if (a.foto && typeof a.foto === "string") {
       let link = a.foto.trim();
 
-      // Detectar si es enlace de Google Drive
       if (link.includes("drive.google.com")) {
-        let idMatch =
-          link.match(/\/d\/([a-zA-Z0-9_-]+)/) || // formato /d/ID/
-          link.match(/id=([a-zA-Z0-9_-]+)/) || // formato ?id=ID
-          link.match(/[-\w]{25,}/); // captura ID largo si viene solo
-        if (idMatch && idMatch[1]) {
-          fotoFinal = `https://drive.google.com/uc?export=view&id=${idMatch[1]}`;
-        } else if (idMatch && idMatch[0]) {
-          fotoFinal = `https://drive.google.com/uc?export=view&id=${idMatch[0]}`;
+        // Captura ID en cualquier formato
+        let id = null;
+        const patterns = [
+          /\/d\/([a-zA-Z0-9_-]+)/,      // /d/ID/
+          /id=([a-zA-Z0-9_-]+)/,        // ?id=ID
+          /\/file\/d\/([a-zA-Z0-9_-]+)/, // /file/d/ID/
+          /([a-zA-Z0-9_-]{25,})/        // cualquier ID largo
+        ];
+        for (const p of patterns) {
+          const m = link.match(p);
+          if (m && m[1]) { id = m[1]; break; }
         }
+        if (id) fotoFinal = `https://drive.google.com/uc?export=view&id=${id}`;
       }
+      else if (link.startsWith("http")) {
+        fotoFinal = link;
+      }
+    }
 
       // Si no es de Drive pero sí un link directo http
       else if (link.startsWith("http")) {
