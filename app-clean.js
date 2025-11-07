@@ -184,19 +184,27 @@ async function onRegistro(e) {
   const f = e.target;
   const data = Object.fromEntries(new FormData(f));
 
+  // 📸 Subida automática de la foto a Google Drive
   let fotoURL = "";
   const file = f.querySelector('input[name="fotoFile"]')?.files?.[0];
   if (file) {
     const base64 = await toBase64(file);
     const res = await gas("uploadImage", {
-      folder: "artists",
+      folder: "FotosArtistas",
       fileName: file.name,
       mimeType: file.type,
       base64
     });
-    fotoURL = res.url || "";
+
+    // ✅ Si el GAS devuelve un id, creamos el link público visible
+    if (res.ok && res.id) {
+      fotoURL = `https://drive.google.com/uc?export=view&id=${res.id}`;
+    } else if (res.url) {
+      fotoURL = res.url;
+    }
   }
 
+  // 📋 Guardamos los datos en SheetDB
   const id = uid("A");
   const pin = pin6();
   const row = {
@@ -213,15 +221,21 @@ async function onRegistro(e) {
     correo: data.correo,
     celular: data.celular,
     tipo_arte: data.tipo_arte,
-    p15: data.p15, p30: data.p30, p60: data.p60, p120: data.p120,
+    p15: data.p15, 
+    p30: data.p30, 
+    p60: data.p60, 
+    p120: data.p120,
     bio: data.bio,
     pin,
     deleted: "FALSE"
   };
 
   await sheetPost(row);
-  $("#msg-registro").textContent = "Registro exitoso. Revisa tu correo para tu PIN.";
+
+  // ✉️ Enviamos PIN al correo
+  $("#msg-registro").textContent = "✅ Registro exitoso. Revisa tu correo para tu PIN.";
   await gas("sendPin", { to: [data.correo], artista: data.nombre_artistico, pin });
+
   await cargarArtistas();
   renderCards();
   f.reset();
