@@ -138,7 +138,9 @@ function renderCards() {
     const vId = (a.video || "").includes("watch?v=")
       ? a.video.split("watch?v=")[1]
       : (a.video || "").split("/").pop();
-    const iframe = vId ? `<iframe class="video" src="https://www.youtube.com/embed/${vId}" allowfullscreen></iframe>` : "";
+    const iframe = vId
+      ? `<iframe class="video" src="https://www.youtube.com/embed/${vId}" allowfullscreen></iframe>`
+      : "";
 
     const rating = Number(a.rating || 0);
     const stars = renderStarsDisplay(rating);
@@ -150,20 +152,20 @@ function renderCards() {
       <span class="badge">120m $${a.p120}</span>
     `;
 
-    // ✅ Corrección Drive
+    // 🔹 Nueva lógica de imagen — Detecta ID de Google Drive y genera URL visible
     let fotoFinal = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
+    if (a.foto) {
+      if (a.foto.includes("drive.google.com")) {
+        // Busca ID en el enlace
+        const match = a.foto.match(/\/d\/([a-zA-Z0-9_-]+)/) || a.foto.match(/id=([a-zA-Z0-9_-]+)/);
+        if (match && match[1]) {
+          fotoFinal = `https://drive.google.com/uc?export=view&id=${match[1]}`;
+        }
+      } else if (a.foto.startsWith("http")) {
+        fotoFinal = a.foto;
+      }
+    }
 
-if (a.foto && a.foto.includes("drive.google.com")) {
-  // Extrae el ID del enlace de Drive (funciona con view?usp=drive_link o file/d/)
-  const match = a.foto.match(/\/d\/([a-zA-Z0-9_-]+)/) || a.foto.match(/id=([a-zA-Z0-9_-]+)/);
-  if (match) {
-    const id = match[1];
-    fotoFinal = `https://drive.google.com/uc?export=view&id=${id}`;
-  }
-} else if (a.foto && a.foto.startsWith("http")) {
-  fotoFinal = a.foto;
-}
-    
     cont.insertAdjacentHTML(
       "beforeend",
       `
