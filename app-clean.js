@@ -13,7 +13,7 @@ const CONFIG = {
 };
 
 // ======================= GAS (EMAIL/DRIVE) =======================
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyjWTTEG60IzzJspv5_9F4_nfjt4BbDHHzdqNFwU_4TPpFhwMM__BFU35twPxJqwsYK/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbySRB_iWedTQishyPNwbBf2EiWCwhQY4McBAUWkX-gtDha8J0HxZNBfNfPLmIa7Hh3V/exec";
 
 async function gas(action, payload = {}) {
   try {
