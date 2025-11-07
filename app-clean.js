@@ -185,7 +185,7 @@ async function onRegistro(e) {
   const data = Object.fromEntries(new FormData(f));
 
   let fotoURL = "";
-  const file = f.querySelector('input[name="fotoFile"]').files[0];
+  const file = f.querySelector('input[name="fotoFile"]')?.files?.[0];
   if (file) {
     const base64 = await toBase64(file);
     const res = await gas("uploadImage", {
@@ -236,6 +236,7 @@ function toBase64(file) {
     reader.onerror = reject;
   });
 }
+
 // ======================= SOLICITUD DE CONTRATACIÓN =======================
 function abrirSolicitud(artistaId) {
   const a = ARTISTAS.find(x => x.id === artistaId);
@@ -302,6 +303,7 @@ function abrirSolicitud(artistaId) {
 
     CONTRATOS.push(contrato);
     $("#msg-solicitud").textContent = "✅ Su solicitud fue realizada. Espere confirmación del artista.";
+
     await gas("notifyNewBooking", {
       to: [a.correo],
       artista: a.nombre_artistico,
@@ -311,160 +313,4 @@ function abrirSolicitud(artistaId) {
       mensaje: contrato.mensaje
     });
   };
-}
-
-// ======================= LOGIN Y PANEL DEL ARTISTA =======================
-async function onLoginArtista(e) {
-  e.preventDefault();
-  const { cedula, pin } = Object.fromEntries(new FormData(e.target));
-  const artista = ARTISTAS.find(a => a.cedula === cedula && a.pin === pin);
-  if (!artista) {
-    $("#msg-login").textContent = "Datos incorrectos";
-    return;
-  }
-  $("#msg-login").textContent = "";
-  $("#panel-artista").classList.remove("hidden");
-  renderSolicitudesArtista(artista);
-}
-
-function renderSolicitudesArtista(artista) {
-  const cont = $("#solicitudes-artista");
-  cont.innerHTML = "";
-
-  CONTRATOS.filter(c => c.artista_id === artista.id && c.estado === "por confirmar artista")
-    .forEach(c => {
-      const card = document.createElement("div");
-      card.className = "card";
-      const pagoNeto = (Number(c.precio_total) * (1 - CONFIG.COMMISSION_ARTIST)).toFixed(2);
-      card.innerHTML = `
-        <div><b>${c.usuario_nombre}</b> solicita show de ${c.duracion} min el ${c.fecha} en ${c.ciudad}</div>
-        <div class="small">Mensaje: ${c.mensaje || "-"}</div>
-        <div class="small">💰 Pago neto para ti (menos 5%): <b>$${pagoNeto}</b></div>
-        <div class="actions">
-          <button data-id="${c.id}" class="btn-aceptar primary">Aceptar</button>
-          <button data-id="${c.id}" class="btn-rechazar">Rechazar</button>
-        </div>`;
-      cont.appendChild(card);
-    });
-
-  $$(".btn-aceptar", cont).forEach(b => b.onclick = () => aceptarContrato(b.dataset.id, artista));
-  $$(".btn-rechazar", cont).forEach(b => b.onclick = () => rechazarContrato(b.dataset.id, artista));
-}
-
-async function aceptarContrato(cid, artista) {
-  const c = CONTRATOS.find(x => x.id === cid);
-  if (!c) return;
-  c.estado = "por validar pago";
-  await gas("notifyUserPayment", {
-    to: [c.usuario_correo],
-    usuario: c.usuario_nombre,
-    artista: artista.nombre_artistico,
-    banco: CONFIG.BANK.bank,
-    cuenta: CONFIG.BANK.account,
-    titular: CONFIG.BANK.holder,
-    cedula: CONFIG.BANK.id
-  });
-  await gas("notifyAdminPayment", {
-    to: ["jordyalejandrot1994@gmail.com"],
-    usuario: c.usuario_nombre,
-    artista: artista.nombre_artistico
-  });
-  alert("Solicitud aceptada. El usuario fue notificado para realizar el pago.");
-  renderSolicitudesArtista(artista);
-}
-
-function rechazarContrato(cid, artista) {
-  const i = CONTRATOS.findIndex(x => x.id === cid);
-  if (i > -1) CONTRATOS.splice(i, 1);
-  renderSolicitudesArtista(artista);
-}
-
-// ======================= MIS RESERVAS Y COMPROBANTE =======================
-async function onBuscarReserva(e) {
-  e.preventDefault();
-  const correo = new FormData(e.target).get("correo");
-  const list = CONTRATOS.filter(c => c.usuario_correo === correo);
-  const cont = $("#reservas-usuario");
-  cont.innerHTML = "";
-  if (!list.length) {
-    cont.innerHTML = "<div class='card'>No se encontraron reservas.</div>";
-    return;
-  }
-
-  list.forEach(c => {
-    const el = document.createElement("div");
-    el.className = "card";
-    el.innerHTML = `
-      <div><b>${c.artista_nombre}</b> • ${c.fecha} • ${c.ciudad} • ${c.duracion} min</div>
-      <div class="small">Estado: ${c.estado}</div>
-      ${c.estado === "por validar pago" ? `
-        <label>Subir comprobante:<input type="file" data-id="${c.id}" class="comprobante"></label>
-        <div class="actions"><button class="primary" data-id="${c.id}">Enviar comprobante</button></div>
-      ` : ""}
-    `;
-    cont.appendChild(el);
-  });
-
-  $$("#reservas-usuario button").forEach(b => b.onclick = () => enviarComprobante(b.dataset.id));
-}
-
-async function enviarComprobante(cid) {
-  const input = $(`input.comprobante[data-id="${cid}"]`);
-  const file = input?.files?.[0];
-  if (!file) return alert("Selecciona un archivo de comprobante.");
-  const base64 = await toBase64(file);
-  const res = await gas("uploadImage", {
-    folder: "proofs",
-    fileName: file.name,
-    mimeType: file.type,
-    base64
-  });
-  const url = res.url || "";
-  const c = CONTRATOS.find(x => x.id === cid);
-  c.comprobante_url = url;
-  alert("Comprobante subido. El administrador lo revisará.");
-}
-
-// ======================= ADMIN PANEL =======================
-async function openAdmin() {
-  const pass = prompt("Clave de administrador:");
-  if (pass !== CONFIG.ADMIN_PASSWORD) return alert("Clave incorrecta");
-  $("#admin").classList.remove("hidden");
-  renderAdmin();
-}
-
-function renderAdmin() {
-  const cont = $("#admin-content");
-  const pend = CONTRATOS.filter(c => c.estado === "por validar pago");
-  cont.innerHTML = "<h4>Pendientes de validar pago</h4>" + (pend.length ? "" : "<p>No hay pendientes.</p>");
-  pend.forEach(c => {
-    const el = document.createElement("div");
-    el.className = "card";
-    el.innerHTML = `
-      <div><b>${c.artista_nombre}</b> ←→ <b>${c.usuario_nombre}</b></div>
-      <div class="small">Fecha: ${c.fecha} • Ciudad: ${c.ciudad} • Duración: ${c.duracion} min</div>
-      <div>Comprobante: ${c.comprobante_url ? `<a href='${c.comprobante_url}' target='_blank'>Ver</a>` : "—"}</div>
-      <div class="actions"><button class="primary" data-id="${c.id}">Marcar como pagado</button></div>`;
-    cont.appendChild(el);
-  });
-  $$("#admin-content button.primary").forEach(b => b.onclick = () => confirmarContrato(b.dataset.id));
-}
-
-async function confirmarContrato(cid) {
-  const c = CONTRATOS.find(x => x.id === cid);
-  if (!c) return;
-  c.estado = "confirmado";
-  const artista = ARTISTAS.find(a => a.id === c.artista_id);
-  await gas("notifyConfirmed", {
-    toUser: [c.usuario_correo],
-    toArtist: [artista.correo],
-    artista_nombre: artista.nombre_artistico,
-    artista_correo: artista.correo,
-    artista_celular: artista.celular,
-    usuario_nombre: c.usuario_nombre,
-    usuario_correo: c.usuario_correo,
-    usuario_celular: c.usuario_celular
-  });
-  alert("Contrato confirmado y contactos liberados.");
-  renderAdmin();
 }
