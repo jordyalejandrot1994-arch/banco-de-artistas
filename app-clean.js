@@ -1,131 +1,58 @@
-// ======================= CONFIG =======================
-const CONFIG = {
-  SHEETDB_ENDPOINT: "https://sheetdb.io/api/v1/jaa331n4u5icl",
-  COMMISSION_USER: 0.10, // +10% al usuario
-  COMMISSION_ARTIST: 0.05, // -5% al artista
-  ADMIN_PASSWORD: "Admin2026",
-  BANK: {
-    bank: "Banco de Loja",
-    account: "2901691001",
-    holder: "Jordy Alejandro Torres Quezada",
-    id: "1105200057"
-  }
-};
+/* ==========================================================
+   BANCO DE ARTISTAS - APP CLEAN (versión estable sin fotos)
+   ========================================================== */
 
-// ======================= GAS (EMAIL/DRIVE) =======================
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyjWTTEG60IzzJspv5_9F4_nfjt4BbDHHzdqNFwU_4TPpFhwMM__BFU35twPxJqwsYK/exec";
-
-async function gas(action, payload = {}) {
-  try {
-    const r = await fetch(GAS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action, ...payload })
-    });
-    return await r.json().catch(() => ({ ok: false }));
-  } catch (e) {
-    console.warn("GAS error:", e);
-    return { ok: false, error: String(e) };
-  }
-}
-
-// ======================= HELPERS =======================
-const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-const uid = (p = "A") => p + Math.random().toString(36).slice(2, 8).toUpperCase();
-const pin6 = () => "" + Math.floor(100000 + Math.random() * 900000);
-
-async function sheetGet() {
-  const r = await fetch(CONFIG.SHEETDB_ENDPOINT);
-  return await r.json();
-}
-async function sheetPost(row) {
-  const r = await fetch(CONFIG.SHEETDB_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ data: [row] })
-  });
-  return await r.json();
-}
-async function sheetPatch(id, row) {
-  const url = `${CONFIG.SHEETDB_ENDPOINT}/id/${encodeURIComponent(id)}`;
-  const r = await fetch(url, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ data: row })
-  });
-  return await r.json();
-}
-
-// ======================= STATE =======================
+const SHEETDB_URL = "https://sheetdb.io/api/v1/XXXXXXXXXXXX"; // 👈 reemplaza con tu endpoint real
 let ARTISTAS = [];
-let CONTRATOS = [];
+let RESERVAS = [];
+let modoAdmin = false;
 
-// ======================= UI TABS =======================
-$$("nav.tabs button").forEach(b => {
-  b.addEventListener("click", () => {
-    $$("nav.tabs button").forEach(x => x.classList.remove("active"));
-    b.classList.add("active");
-    $$(".tab").forEach(t => t.classList.remove("active"));
-    $("#tab-" + b.dataset.tab).classList.add("active");
-  });
-});
+const $ = (q) => document.querySelector(q);
+const $$ = (q) => document.querySelectorAll(q);
 
-// Admin oculto
-let clicks = 0;
-$("header h1").addEventListener("click", () => {
-  clicks++;
-  if (clicks >= 3) openAdmin();
-  setTimeout(() => (clicks = 0), 1200);
-});
-document.addEventListener("keydown", e => {
-  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "a") openAdmin();
-});
-$("#close-admin").onclick = () => $("#admin").classList.add("hidden");
-
-// ======================= CARGA INICIAL =======================
-init();
-async function init() {
-  await cargarArtistas();
-  renderFiltros();
-  renderCards();
-  bindForms();
+function notify(msg, ok = true) {
+  const box = document.createElement("div");
+  box.className = `toast ${ok ? "ok" : "error"}`;
+  box.textContent = msg;
+  document.body.appendChild(box);
+  setTimeout(() => box.remove(), 4000);
 }
 
-async function cargarArtistas() {
-  try {
-    ARTISTAS = await sheetGet();
-  } catch (e) {
-    console.error(e);
-    ARTISTAS = [];
-  }
-}
-
-function renderFiltros() {
-  const ciudades = [...new Set(ARTISTAS.map(a => a.ciudad).filter(Boolean))].sort();
-  const tipos = [...new Set(ARTISTAS.map(a => a.tipo_arte).filter(Boolean))].sort();
-  const fc = $("#f-ciudad"),
-    ft = $("#f-tipo");
-  ciudades.forEach(c => fc.insertAdjacentHTML("beforeend", `<option>${c}</option>`));
-  tipos.forEach(t => ft.insertAdjacentHTML("beforeend", `<option>${t}</option>`));
-  ["q", "f-ciudad", "f-tipo"].forEach(id => $("#" + id).addEventListener("input", renderCards));
-}
-
-// ======================= RENDER CARDS =======================
+/* ========================
+   🔹 Render de estrellas
+======================== */
 function renderStarsDisplay(rating = 0) {
-  const total = 5;
   let html = "";
-  for (let i = 1; i <= total; i++) {
-    html += i <= rating ? "⭐" : '<span style="color:#475569;">★</span>';
+  for (let i = 1; i <= 5; i++) {
+    html += `<span style="color:${i <= rating ? "#facc15" : "#475569"}">★</span>`;
   }
   return html;
 }
 
+/* ========================
+   🔹 Cargar artistas
+======================== */
+async function loadArtistas() {
+  try {
+    const res = await fetch(SHEETDB_URL);
+    ARTISTAS = await res.json();
+    renderCards();
+  } catch (err) {
+    console.error("Error cargando artistas:", err);
+    notify("Error al cargar artistas ❌", false);
+  }
+}
+
+/* ========================
+   🔹 Renderizar artistas
+======================== */
 function renderCards() {
-  const q = $("#q").value.toLowerCase();
-  const fc = $("#f-ciudad").value;
-  const ft = $("#f-tipo").value;
+  const q = $("#q")?.value?.toLowerCase() || "";
+  const fc = $("#f-ciudad")?.value || "";
+  const ft = $("#f-tipo")?.value || "";
   const cont = $("#cards");
+  if (!cont) return;
   cont.innerHTML = "";
 
   ARTISTAS.filter(a => {
@@ -133,14 +60,12 @@ function renderCards() {
     const okQ = !q || texto.includes(q);
     const okC = !fc || a.ciudad === fc;
     const okT = !ft || (a.tipo_arte || "").includes(ft);
-    return okQ && okC && okT && a.deleted !== "TRUE";
+    return okQ && okC && okT && a.deleted !== "TRUE" && a.aprobado !== "NO";
   }).forEach(a => {
     const vId = (a.video || "").includes("watch?v=")
       ? a.video.split("watch?v=")[1]
       : (a.video || "").split("/").pop();
-    const iframe = vId
-      ? `<iframe class="video" src="https://www.youtube.com/embed/${vId}" allowfullscreen></iframe>`
-      : "";
+    const iframe = vId ? `<iframe class="video" src="https://www.youtube.com/embed/${vId}" allowfullscreen></iframe>` : "";
 
     const rating = Number(a.rating || 0);
     const stars = renderStarsDisplay(rating);
@@ -151,422 +76,244 @@ function renderCards() {
       <span class="badge">60m $${a.p60}</span>
       <span class="badge">120m $${a.p120}</span>
     `;
-    
-    // 🔹 Nueva lógica Drive mejorada: convierte cualquier enlace de Drive a formato visible
-    let fotoFinal = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
-    if (a.foto && typeof a.foto === "string") {
-      let link = a.foto.trim();
 
-      if (link.includes("drive.google.com")) {
-        // Captura ID en cualquier formato
-        let id = null;
-        const patterns = [
-          /\/d\/([a-zA-Z0-9_-]+)/,      // /d/ID/
-          /id=([a-zA-Z0-9_-]+)/,        // ?id=ID
-          /\/file\/d\/([a-zA-Z0-9_-]+)/, // /file/d/ID/
-          /([a-zA-Z0-9_-]{25,})/        // cualquier ID largo
-        ];
-        for (const p of patterns) {
-          const m = link.match(p);
-          if (m && m[1]) { id = m[1]; break; }
-        }
-        if (id) fotoFinal = `https://drive.google.com/uc?export=view&id=${id}`;
-      }
-      else if (link.startsWith("http")) {
-        fotoFinal = link;
-      }
-    }
-
-      // Si no es de Drive pero sí un link directo http
-      else if (link.startsWith("http")) {
-        fotoFinal = link;
-      }
-    }
-
-    cont.insertAdjacentHTML(
-      "beforeend",
-      `
+    cont.insertAdjacentHTML("beforeend", `
       <article class="card">
         <img 
-          src="${fotoFinal}" 
-          alt="${a.nombre_artistico || "Artista"}" 
+          src="${a.foto && a.foto.startsWith('http') ? a.foto : 'https://cdn-icons-png.flaticon.com/512/847/847969.png'}" 
+          alt="${a.nombre_artistico}" 
           style="width:100%;height:180px;object-fit:cover;border-radius:12px;border:1px solid #1f2b46"
           onerror="this.src='https://cdn-icons-png.flaticon.com/512/847/847969.png'">
         <h3>${a.nombre_artistico || ""}</h3>
-        <div class="small">
-          ${(a.tipo_arte || "").split(",").map(s => s.trim()).filter(Boolean).join(" • ")} • ${a.ciudad || ""}
-        </div>
-        <div class="small">
-          ${stars} <span style="margin-left:6px;color:#94a3b8;">(${a.votos || 0})</span>
-        </div>
+        <div class="small">${(a.tipo_arte || "").split(",").map(s => s.trim()).filter(Boolean).join(" • ")} • ${a.ciudad || ""}</div>
+        <div class="small">${stars} <span style="margin-left:6px;color:#94a3b8;">(${a.votos || 0})</span></div>
         <p>${a.bio || ""}</p>
         ${iframe}
         <div class="actions">${precios}</div>
-        <div class="actions">
-          <button data-id="${a.id}" class="btn-contratar primary">Contratar</button>
-        </div>
-      </article>`
-    );
+        <div class="actions"><button data-id="${a.id}" class="btn-contratar primary">Contratar</button></div>
+      </article>
+    `);
   });
 
-  $$(".btn-contratar").forEach(b => (b.onclick = () => abrirSolicitud(b.dataset.id)));
+  $$(".btn-contratar").forEach(btn =>
+    btn.addEventListener("click", () => openContratacion(btn.dataset.id))
+  );
 }
 
-// ======================= REGISTRO ARTISTA =======================
-function bindForms() {
-  $("#form-registro").addEventListener("submit", onRegistro);
-  $("#form-login-artista").addEventListener("submit", onLoginArtista);
-  $("#form-buscar-reserva").addEventListener("submit", onBuscarReserva);
-}
-
-async function onRegistro(e) {
-  e.preventDefault();
-  const f = e.target;
-  const data = Object.fromEntries(new FormData(f));
-  const id = uid("A");
-  const pin = pin6();
-
-  const row = {
-    id,
-    aprobado: "TRUE",
-    rating: "0",
-    votos: "0",
-    foto: data.foto,
-    video: data.video,
-    nombre_artistico: data.nombre_artistico,
-    nombre_real: data.nombre_real,
-    cedula: data.cedula,
-    ciudad: data.ciudad,
-    correo: data.correo,
-    celular: data.celular,
-    tipo_arte: data.tipo_arte,
-    p15: data.p15,
-    p30: data.p30,
-    p60: data.p60,
-    p120: data.p120,
-    bio: data.bio,
-    pin,
-    deleted: "FALSE"
+/* ========================
+   🔹 Subir imagen a Drive (foto artista o comprobante)
+======================== */
+async function uploadImageToDrive(file, folder = "artists") {
+  const base64 = await toBase64(file);
+  const data = {
+    action: "uploadImage",
+    base64,
+    fileName: file.name,
+    mimeType: file.type,
+    folder
   };
-
-  try {
-    await sheetPost(row);
-    $("#msg-registro").textContent = "Registro exitoso. Revisa tu correo para tu PIN.";
-    await gas("sendPin", { to: [data.correo], artista: data.nombre_artistico, pin });
-    await cargarArtistas();
-    renderCards();
-    f.reset();
-  } catch (err) {
-    $("#msg-registro").textContent = "Ocurrió un error en el registro.";
-  }
+  const res = await fetch(GAS_URL, {
+    method: "POST",
+    body: JSON.stringify(data)
+  });
+  return await res.json();
 }
 
-// ======================= CONTRATACIÓN =======================
-function abrirSolicitud(artistaId) {
-  const a = ARTISTAS.find(x => x.id === artistaId);
-  if (!a) return;
+/* ========================
+   🔹 Convertir a Base64
+======================== */
+function toBase64(file) {
+  return new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => res(reader.result.split(",")[1]);
+    reader.onerror = (err) => rej(err);
+  });
+}
 
-  const html = `
-  <div class="card" style="max-height:80vh;overflow-y:auto;">
-    <h3>Contratar a ${a.nombre_artistico}</h3>
-    <form id="form-solicitud">
-      <label>Tu nombre<input name="usuario_nombre" required></label>
-      <label>Tu correo<input type="email" name="usuario_correo" required></label>
-      <label>Tu celular<input name="usuario_celular" required></label>
-      <label>Ciudad del evento<input name="ciudad_evento" required></label>
-      <label>Fecha del evento<input type="date" name="fecha_evento" required></label>
-      <label>Duración<select name="duracion" id="duracion">
-        <option>15</option><option>30</option><option>60</option><option>120</option>
-      </select></label>
-      <p id="precioTotal" style="color:#0ea5e9;font-weight:bold;"></p>
-      <label>Mensaje<textarea name="mensaje" rows="2" placeholder="Detalles del evento..."></textarea></label>
-      <div class="actions"><button class="primary" type="submit">Enviar solicitud</button></div>
-      <p id="msg-solicitud" class="msg"></p>
-    </form>
-  </div>`;
-  const sheet = $("#admin");
-  $("#admin-content").innerHTML = html;
-  sheet.classList.remove("hidden");
+/* ========================
+   🔹 Registrar artista
+======================== */
+$("#form-registro")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
 
-  const selectDur = $("#duracion");
-  const precioEl = $("#precioTotal");
-  selectDur.addEventListener("change", () => {
-    const dur = selectDur.value;
-    const base = a[`p${dur}`];
-    const total = Number(base) + Number(base) * CONFIG.COMMISSION_USER;
-    precioEl.textContent = `💰 Total a pagar: $${total.toFixed(2)}`;
+  // Subir foto si existe
+  let fotoUrl = "";
+  const file = fd.get("foto");
+  if (file && file.size > 0) {
+    const res = await uploadImageToDrive(file, "artists");
+    if (res.ok) fotoUrl = res.url;
+  }
+
+  fd.append("foto", fotoUrl);
+  const body = Object.fromEntries(fd.entries());
+  body.pin = Math.floor(1000 + Math.random() * 9000);
+  body.aprobado = "SI";
+
+  await fetch(SHEETDB_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
   });
 
-  $("#form-solicitud").onsubmit = async e => {
-    e.preventDefault();
-    const fd = Object.fromEntries(new FormData(e.target));
-    const contrato = {
-      id: uid("C"),
-      artista_id: a.id,
-      artista_nombre: a.nombre_artistico,
-      artista_correo: a.correo,
-      usuario_nombre: fd.usuario_nombre,
-      usuario_correo: fd.usuario_correo,
-      usuario_celular: fd.usuario_celular,
-      ciudad: fd.ciudad_evento,
-      fecha: fd.fecha_evento,
-      duracion: fd.duracion,
-      mensaje: fd.mensaje || "",
-      estado: "por confirmar artista",
-      comprobante_url: ""
-    };
-    CONTRATOS.push(contrato);
-    $("#msg-solicitud").textContent = "✅ Solicitud enviada. Espere confirmación por correo.";
-    await gas("notifyNewBooking", {
-      to: [a.correo],
-      artista: a.nombre_artistico,
-      fecha: contrato.fecha,
-      duracion: contrato.duracion,
-      ciudad: contrato.ciudad,
-      mensaje: contrato.mensaje
+  await fetch(GAS_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "sendPin",
+      to: [body.correo],
+      artista: body.nombre_artistico,
+      pin: body.pin
+    })
+  });
+
+  notify("Artista registrado correctamente ✅");
+  e.target.reset();
+  loadArtistas();
+});
+
+/* ========================
+   🔹 Contratar artista
+======================== */
+async function openContratacion(id) {
+  const artista = ARTISTAS.find(a => a.id === id);
+  if (!artista) return notify("Artista no encontrado ❌", false);
+
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  const precios = [15, 30, 60, 120];
+  const htmlPrecios = precios.map(min => {
+    const base = artista[`p${min}`];
+    const total = Math.round(base * 1.1);
+    return `<option value="${min}">${min} minutos — $${total}</option>`;
+  }).join("");
+
+  modal.innerHTML = `
+    <div class="modal-content">
+      <h3>Contratar a ${artista.nombre_artistico}</h3>
+      <label>Tu nombre:</label>
+      <input id="nombreUsuario">
+      <label>Tu correo:</label>
+      <input id="correoUsuario" type="email">
+      <label>Ciudad del evento:</label>
+      <input id="ciudadEvento">
+      <label>Duración del show:</label>
+      <select id="duracionShow">${htmlPrecios}</select>
+      <label>Mensaje (opcional):</label>
+      <textarea id="mensaje"></textarea>
+      <button id="btnConfirmar" class="primary">Enviar solicitud</button>
+      <button onclick="this.closest('.modal').remove()">Cancelar</button>
+    </div>`;
+  document.body.appendChild(modal);
+
+  $("#btnConfirmar").onclick = async () => {
+    const usuario = $("#nombreUsuario").value.trim();
+    const correo = $("#correoUsuario").value.trim();
+    const duracion = $("#duracionShow").value;
+    const ciudad = $("#ciudadEvento").value.trim();
+    if (!usuario || !correo) return notify("Completa tus datos ❌", false);
+
+    await fetch(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "notifyNewBooking",
+        to: [artista.correo],
+        artista: artista.nombre_artistico,
+        duracion,
+        ciudad,
+        fecha: new Date().toLocaleDateString(),
+        mensaje: $("#mensaje").value
+      })
     });
+
+    notify("Solicitud enviada correctamente ✅");
+    modal.remove();
   };
 }
-// ======================= LOGIN ARTISTA =======================
-async function onLoginArtista(e) {
+
+/* ========================
+   🔹 Panel de reservas
+======================== */
+$("#form-reservas")?.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const { cedula, pin } = Object.fromEntries(new FormData(e.target));
-  const artista = ARTISTAS.find(a => a.cedula === cedula && a.pin === pin);
-  if (!artista) {
-    $("#msg-login").textContent = "Datos incorrectos";
-    return;
-  }
-  $("#msg-login").textContent = "Ingreso exitoso.";
-  $("#panel-artista").classList.remove("hidden");
-  renderSolicitudesArtista(artista);
-}
+  const correo = $("#correoReserva").value.trim();
+  if (!correo) return notify("Ingresa tu correo", false);
 
-function renderSolicitudesArtista(artista) {
-  const cont = $("#solicitudes-artista");
-  cont.innerHTML = "";
-  const list = CONTRATOS.filter(c => c.artista_id === artista.id && c.estado === "por confirmar artista");
+  const res = await fetch(`${SHEETDB_URL}/search?correo=${correo}`);
+  RESERVAS = await res.json();
+  renderReservas();
+});
 
-  if (!list.length) {
-    cont.innerHTML = `<div class="card">No tienes solicitudes pendientes.</div>`;
-    return;
-  }
-
-  list.forEach(c => {
-    const neto = (a => {
-      const base = a[`p${c.duracion}`];
-      return (base * (1 - CONFIG.COMMISSION_ARTIST)).toFixed(2);
-    })(artista);
-
-    const el = document.createElement("div");
-    el.className = "card";
-    el.innerHTML = `
-      <div><b>${c.usuario_nombre}</b> solicita show de ${c.duracion} min el <b>${c.fecha}</b> en ${c.ciudad}</div>
-      <div class="small">Mensaje: ${c.mensaje || "-"}</div>
-      <p style="color:#16a34a;">💵 Pago neto para ti: $${neto}</p>
-      <div class="actions">
-        <button data-id="${c.id}" class="btn-aceptar primary">Aceptar</button>
-        <button data-id="${c.id}" class="btn-rechazar">Rechazar</button>
-      </div>`;
-    cont.appendChild(el);
-  });
-
-  $$(".btn-aceptar", cont).forEach(b => (b.onclick = () => aceptarContrato(b.dataset.id, artista)));
-  $$(".btn-rechazar", cont).forEach(b => (b.onclick = () => rechazarContrato(b.dataset.id, artista)));
-}
-
-async function aceptarContrato(cid, artista) {
-  const c = CONTRATOS.find(x => x.id === cid);
-  if (!c) return;
-  c.estado = "por validar pago";
-  await gas("notifyUserPayment", {
-    to: [c.usuario_correo],
-    usuario: c.usuario_nombre,
-    artista: artista.nombre_artistico,
-    banco: CONFIG.BANK.bank,
-    cuenta: CONFIG.BANK.account,
-    titular: CONFIG.BANK.holder,
-    cedula: CONFIG.BANK.id
-  });
-  await gas("notifyAdminPayment", {
-    to: ["jordyalejandrot1994@gmail.com"],
-    usuario: c.usuario_nombre,
-    artista: artista.nombre_artistico
-  });
-  alert("Solicitud aceptada. El usuario fue notificado para realizar el pago.");
-  renderSolicitudesArtista(artista);
-}
-
-function rechazarContrato(cid, artista) {
-  const i = CONTRATOS.findIndex(x => x.id === cid);
-  if (i > -1) CONTRATOS.splice(i, 1);
-  renderSolicitudesArtista(artista);
-}
-
-// ======================= MIS RESERVAS (USUARIO) =======================
-async function onBuscarReserva(e) {
-  e.preventDefault();
-  const correo = new FormData(e.target).get("correo");
-  const list = CONTRATOS.filter(c => c.usuario_correo === correo);
-  const cont = $("#reservas-usuario");
+function renderReservas() {
+  const cont = $("#reservas");
+  if (!cont) return;
   cont.innerHTML = "";
 
-  if (!list.length) {
-    cont.innerHTML = '<div class="card">No se encontraron reservas.</div>';
-    return;
-  }
-
-  list.forEach(c => {
-    const el = document.createElement("div");
-    el.className = "card";
-    el.innerHTML = `
-      <div><b>${c.artista_nombre}</b> • ${c.fecha} • ${c.ciudad} • ${c.duracion} min</div>
-      <div class="small">Estado: ${c.estado}</div>
-      ${
-        c.estado === "por validar pago"
-          ? `
-        <label>Subir comprobante de pago
-          <input type="file" accept="image/*" data-id="${c.id}" class="comprobanteFile">
-        </label>
-        <div class="actions"><button class="primary" data-id="${c.id}">Enviar comprobante</button></div>
-      `
-          : ""
-      }
-      ${c.estado === "confirmado" ? `
-        <div class="actions">
-          <p>⭐ Califica tu experiencia:</p>
-          <div class="rating" data-id="${c.id}">
-            ${[1,2,3,4,5].map(i=>`<span data-star="${i}">★</span>`).join("")}
-          </div>
-          <textarea class="resena" placeholder="Escribe una reseña..." rows="2"></textarea>
-          <button class="primary" data-calificar="${c.id}">Enviar calificación</button>
-        </div>` : ""}
-    `;
-    cont.appendChild(el);
+  RESERVAS.forEach(r => {
+    cont.insertAdjacentHTML("beforeend", `
+      <div class="reserva">
+        <p><b>${r.artista}</b> • ${r.fecha}</p>
+        <p>Estado: ${r.estado || "pendiente"}</p>
+        <input type="file" class="comprobante" data-id="${r.id}">
+      </div>
+    `);
   });
 
-  // Eventos comprobante
-  $$("#reservas-usuario button.primary").forEach(b => {
-    const cid = b.dataset.id;
-    if (cid) b.onclick = () => enviarComprobante(cid);
-  });
-
-  // Eventos calificación
-  $$("#reservas-usuario button[data-calificar]").forEach(b => {
-    const cid = b.dataset.calificar;
-    b.onclick = () => enviarCalificacion(cid);
-  });
-
-  // Efecto visual estrellas
-  $$(".rating span").forEach(star => {
-    star.addEventListener("click", e => {
-      const parent = e.target.parentElement;
-      const val = Number(e.target.dataset.star);
-      parent.dataset.value = val;
-      parent.querySelectorAll("span").forEach(s => {
-        s.style.color = s.dataset.star <= val ? "#facc15" : "#475569";
-      });
-    });
-  });
+  $$(".comprobante").forEach(inp =>
+    inp.addEventListener("change", async () => {
+      const file = inp.files[0];
+      if (!file) return;
+      const id = inp.dataset.id;
+      const res = await uploadImageToDrive(file, "proofs");
+      if (res.ok) {
+        await fetch(`${SHEETDB_URL}/id/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ comprobante: res.url, estado: "por validar pago" })
+        });
+        notify("Comprobante subido correctamente ✅");
+      } else notify("Error al subir comprobante ❌", false);
+    })
+  );
 }
 
-async function enviarComprobante(cid) {
-  const input = $(`input.comprobanteFile[data-id="${cid}"]`);
-  const file = input?.files?.[0];
-  if (!file) return alert("Selecciona una imagen antes de enviar.");
+/* ========================
+   🔹 Calificación artistas
+======================== */
+function renderRatingForm(artistaId) {
+  const modal = document.createElement("div");
+  modal.className = "modal";
+  modal.innerHTML = `
+    <div class="modal-content">
+      <h3>Calificar al artista</h3>
+      <div id="starSelector">
+        ${[1,2,3,4,5].map(i => `<span data-v="${i}" style="font-size:28px;cursor:pointer;">★</span>`).join("")}
+      </div>
+      <textarea id="reseña" placeholder="Escribe tu opinión..."></textarea>
+      <button id="enviarRating" class="primary">Enviar</button>
+      <button onclick="this.closest('.modal').remove()">Cancelar</button>
+    </div>`;
+  document.body.appendChild(modal);
 
-  const reader = new FileReader();
-  reader.onload = async () => {
-    const base64 = reader.result.split(",")[1];
-    const mimeType = file.type;
-    const resp = await gas("uploadImage", {
-      folder: "Comprobantes",
-      fileName: file.name,
-      base64,
-      mimeType
+  let rating = 0;
+  $$("#starSelector span").forEach(s => s.onclick = () => {
+    rating = Number(s.dataset.v);
+    $$("#starSelector span").forEach(st => st.style.color = st.dataset.v <= rating ? "#facc15" : "#475569");
+  });
+
+  $("#enviarRating").onclick = async () => {
+    await fetch(`${SHEETDB_URL}/id/${artistaId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rating, reseña: $("#reseña").value })
     });
-    if (!resp.ok) return alert("Error al subir comprobante.");
-
-    const c = CONTRATOS.find(x => x.id === cid);
-    c.comprobante_url = resp.url;
-    alert("Comprobante enviado. El administrador validará tu pago.");
+    notify("Calificación enviada ⭐");
+    modal.remove();
+    loadArtistas();
   };
-  reader.readAsDataURL(file);
 }
 
-// ======================= CALIFICACIÓN =======================
-async function enviarCalificacion(cid) {
-  const c = CONTRATOS.find(x => x.id === cid);
-  if (!c) return;
-  const parent = $(`.rating[data-id="${cid}"]`);
-  const val = Number(parent?.dataset.value || 0);
-  const texto = $(`.resena`).value || "";
-  if (val < 1) return alert("Selecciona una calificación de 1 a 5 estrellas.");
-
-  const artista = ARTISTAS.find(a => a.id === c.artista_id);
-  const votos = Number(artista.votos || 0);
-  const rating = Number(artista.rating || 0);
-  const nuevoPromedio = ((rating * votos + val) / (votos + 1)).toFixed(1);
-
-  artista.rating = nuevoPromedio;
-  artista.votos = votos + 1;
-  await sheetPatch(artista.id, { rating: nuevoPromedio, votos: artista.votos });
-  alert("Gracias por calificar. Tu reseña ha sido enviada.");
-}
-
-// ======================= ADMIN =======================
-async function openAdmin() {
-  const pass = prompt("Clave de administrador:");
-  if (pass !== CONFIG.ADMIN_PASSWORD) return alert("Clave incorrecta");
-  $("#admin").classList.remove("hidden");
-  renderAdmin();
-}
-
-function renderAdmin() {
-  const cont = $("#admin-content");
-  const pend = CONTRATOS.filter(c => c.estado === "por validar pago");
-  cont.innerHTML = "<h4>Pendientes de validar pago</h4>";
-
-  if (!pend.length) {
-    cont.innerHTML += "<div class='card'>No hay pagos pendientes.</div>";
-    return;
-  }
-
-  pend.forEach(c => {
-    const el = document.createElement("div");
-    el.className = "card";
-    el.innerHTML = `
-      <div><b>${c.artista_nombre}</b> ←→ <b>${c.usuario_nombre}</b></div>
-      <div class="small">Fecha: ${c.fecha} • Ciudad: ${c.ciudad} • Duración: ${c.duracion} min</div>
-      <div>Comprobante: ${
-        c.comprobante_url ? `<a href="${c.comprobante_url}" target="_blank">Ver</a>` : "—"
-      }</div>
-      <div class="actions">
-        <button class="primary" data-id="${c.id}">Marcar como pagado</button>
-      </div>`;
-    cont.appendChild(el);
-  });
-
-  $$("#admin-content button.primary").forEach(b => (b.onclick = () => confirmarContrato(b.dataset.id)));
-}
-
-async function confirmarContrato(cid) {
-  const c = CONTRATOS.find(x => x.id === cid);
-  if (!c) return;
-  c.estado = "confirmado";
-  const artista = ARTISTAS.find(a => a.id === c.artista_id);
-
-  await gas("notifyConfirmed", {
-    toUser: [c.usuario_correo],
-    toArtist: [artista.correo],
-    artista_nombre: artista.nombre_artistico,
-    artista_correo: artista.correo,
-    artista_celular: artista.celular,
-    usuario_nombre: c.usuario_nombre,
-    usuario_correo: c.usuario_correo,
-    usuario_celular: c.usuario_celular
-  });
-
-  alert("Contrato confirmado y contactos liberados.");
-  renderAdmin();
-}
-
+/* ========================
+   🔹 Inicialización
+======================== */
+window.addEventListener("DOMContentLoaded", loadArtistas);
