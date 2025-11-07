@@ -73,15 +73,19 @@ $$("nav.tabs button").forEach(b => {
 
 // Admin oculto
 let clicks = 0;
-$("header h1").addEventListener("click", () => {
-  clicks++;
-  if (clicks >= 3) openAdmin();
-  setTimeout(() => (clicks = 0), 1200);
-});
+const h1 = $("header h1");
+if (h1) {
+  h1.addEventListener("click", () => {
+    clicks++;
+    if (clicks >= 3) openAdmin();
+    setTimeout(() => (clicks = 0), 1200);
+  });
+}
 document.addEventListener("keydown", e => {
   if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "a") openAdmin();
 });
-$("#close-admin").onclick = () => $("#admin").classList.add("hidden");
+const closeAdminBtn = $("#close-admin");
+if (closeAdminBtn) closeAdminBtn.onclick = () => $("#admin").classList.add("hidden");
 
 // ======================= CARGA INICIAL =======================
 init();
@@ -104,11 +108,14 @@ async function cargarArtistas() {
 function renderFiltros() {
   const ciudades = [...new Set(ARTISTAS.map(a => a.ciudad).filter(Boolean))].sort();
   const tipos = [...new Set(ARTISTAS.map(a => a.tipo_arte).filter(Boolean))].sort();
-  const fc = $("#f-ciudad"),
-    ft = $("#f-tipo");
+  const fc = $("#f-ciudad"), ft = $("#f-tipo");
+  if (!fc || !ft) return;
   ciudades.forEach(c => fc.insertAdjacentHTML("beforeend", `<option>${c}</option>`));
   tipos.forEach(t => ft.insertAdjacentHTML("beforeend", `<option>${t}</option>`));
-  ["q", "f-ciudad", "f-tipo"].forEach(id => $("#" + id).addEventListener("input", renderCards));
+  ["q", "f-ciudad", "f-tipo"].forEach(id => {
+    const el = $("#" + id);
+    if (el) el.addEventListener("input", renderCards);
+  });
 }
 
 // ======================= RENDER CARDS =======================
@@ -122,10 +129,11 @@ function renderStarsDisplay(rating = 0) {
 }
 
 function renderCards() {
-  const q = $("#q").value.toLowerCase();
-  const fc = $("#f-ciudad").value;
-  const ft = $("#f-tipo").value;
+  const q = ($("#q")?.value || "").toLowerCase();
+  const fc = $("#f-ciudad")?.value || "";
+  const ft = $("#f-tipo")?.value || "";
   const cont = $("#cards");
+  if (!cont) return;
   cont.innerHTML = "";
 
   ARTISTAS.filter(a => {
@@ -150,10 +158,10 @@ function renderCards() {
       <span class="badge">120m $${a.p120}</span>
     `;
 
-    // ✅ Corrección Drive
+    // ✅ (Versión estable) Foto: usa URL tal cual si empieza con http(s) o ícono por defecto
     let fotoFinal = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
     if (a.foto && a.foto.includes("drive.google.com")) {
-      fotoFinal = a.foto;
+      fotoFinal = a.foto; // (sin conversión; versión estable)
     } else if (a.foto && a.foto.startsWith("http")) {
       fotoFinal = a.foto;
     }
@@ -189,9 +197,12 @@ function renderCards() {
 
 // ======================= REGISTRO ARTISTA =======================
 function bindForms() {
-  $("#form-registro").addEventListener("submit", onRegistro);
-  $("#form-login-artista").addEventListener("submit", onLoginArtista);
-  $("#form-buscar-reserva").addEventListener("submit", onBuscarReserva);
+  const fr = $("#form-registro");
+  const fla = $("#form-login-artista");
+  const fbr = $("#form-buscar-reserva");
+  if (fr) fr.addEventListener("submit", onRegistro);
+  if (fla) fla.addEventListener("submit", onLoginArtista);
+  if (fbr) fbr.addEventListener("submit", onBuscarReserva);
 }
 
 async function onRegistro(e) {
@@ -226,13 +237,13 @@ async function onRegistro(e) {
 
   try {
     await sheetPost(row);
-    $("#msg-registro").textContent = "Registro exitoso. Revisa tu correo para tu PIN.";
+    $("#msg-registro")?.textContent = "Registro exitoso. Revisa tu correo para tu PIN.";
     await gas("sendPin", { to: [data.correo], artista: data.nombre_artistico, pin });
     await cargarArtistas();
     renderCards();
     f.reset();
   } catch (err) {
-    $("#msg-registro").textContent = "Ocurrió un error en el registro.";
+    $("#msg-registro")?.textContent = "Ocurrió un error en el registro.";
   }
 }
 
@@ -260,19 +271,26 @@ function abrirSolicitud(artistaId) {
     </form>
   </div>`;
   const sheet = $("#admin");
+  if (!sheet) return;
   $("#admin-content").innerHTML = html;
   sheet.classList.remove("hidden");
 
   const selectDur = $("#duracion");
   const precioEl = $("#precioTotal");
-  selectDur.addEventListener("change", () => {
-    const dur = selectDur.value;
-    const base = a[`p${dur}`];
-    const total = Number(base) + Number(base) * CONFIG.COMMISSION_USER;
-    precioEl.textContent = `💰 Total a pagar: $${total.toFixed(2)}`;
-  });
+  if (selectDur && precioEl) {
+    const calc = () => {
+      const dur = selectDur.value;
+      const base = a[`p${dur}`];
+      const total = Number(base) + Number(base) * CONFIG.COMMISSION_USER;
+      precioEl.textContent = `💰 Total a pagar: $${total.toFixed(2)}`;
+    };
+    selectDur.addEventListener("change", calc);
+    calc(); // mostrar valor inicial
+  }
 
-  $("#form-solicitud").onsubmit = async e => {
+  const formSol = $("#form-solicitud");
+  if (!formSol) return;
+  formSol.onsubmit = async e => {
     e.preventDefault();
     const fd = Object.fromEntries(new FormData(e.target));
     const contrato = {
@@ -302,6 +320,7 @@ function abrirSolicitud(artistaId) {
     });
   };
 }
+
 // ======================= LOGIN ARTISTA =======================
 async function onLoginArtista(e) {
   e.preventDefault();
@@ -318,6 +337,7 @@ async function onLoginArtista(e) {
 
 function renderSolicitudesArtista(artista) {
   const cont = $("#solicitudes-artista");
+  if (!cont) return;
   cont.innerHTML = "";
   const list = CONTRATOS.filter(c => c.artista_id === artista.id && c.estado === "por confirmar artista");
 
@@ -327,10 +347,10 @@ function renderSolicitudesArtista(artista) {
   }
 
   list.forEach(c => {
-    const neto = (a => {
-      const base = a[`p${c.duracion}`];
+    const neto = (() => {
+      const base = artista[`p${c.duracion}`];
       return (base * (1 - CONFIG.COMMISSION_ARTIST)).toFixed(2);
-    })(artista);
+    })();
 
     const el = document.createElement("div");
     el.className = "card";
@@ -381,8 +401,9 @@ function rechazarContrato(cid, artista) {
 async function onBuscarReserva(e) {
   e.preventDefault();
   const correo = new FormData(e.target).get("correo");
-  const list = CONTRATOS.filter(c => c.usuario_correo === correo);
   const cont = $("#reservas-usuario");
+  if (!cont) return;
+  const list = CONTRATOS.filter(c => c.usuario_correo === correo);
   cont.innerHTML = "";
 
   if (!list.length) {
@@ -414,7 +435,7 @@ async function onBuscarReserva(e) {
           </div>
           <textarea class="resena" placeholder="Escribe una reseña..." rows="2"></textarea>
           <button class="primary" data-calificar="${c.id}">Enviar calificación</button>
-        </div>` : ""}
+        </div>` : "" }
     `;
     cont.appendChild(el);
   });
@@ -474,7 +495,7 @@ async function enviarCalificacion(cid) {
   if (!c) return;
   const parent = $(`.rating[data-id="${cid}"]`);
   const val = Number(parent?.dataset.value || 0);
-  const texto = $(`.resena`).value || "";
+  const texto = $(`.resena`)?.value || "";
   if (val < 1) return alert("Selecciona una calificación de 1 a 5 estrellas.");
 
   const artista = ARTISTAS.find(a => a.id === c.artista_id);
@@ -484,7 +505,7 @@ async function enviarCalificacion(cid) {
 
   artista.rating = nuevoPromedio;
   artista.votos = votos + 1;
-  await sheetPatch(artista.id, { rating: nuevoPromedio, votos: artista.votos });
+  await sheetPatch(artista.id, { rating: nuevoPromedio, votos: artista.votos, resena: texto });
   alert("Gracias por calificar. Tu reseña ha sido enviada.");
 }
 
@@ -512,12 +533,8 @@ function renderAdmin() {
     el.innerHTML = `
       <div><b>${c.artista_nombre}</b> ←→ <b>${c.usuario_nombre}</b></div>
       <div class="small">Fecha: ${c.fecha} • Ciudad: ${c.ciudad} • Duración: ${c.duracion} min</div>
-      <div>Comprobante: ${
-        c.comprobante_url ? `<a href="${c.comprobante_url}" target="_blank">Ver</a>` : "—"
-      }</div>
-      <div class="actions">
-        <button class="primary" data-id="${c.id}">Marcar como pagado</button>
-      </div>`;
+      <div>Comprobante: ${ c.comprobante_url ? `<a href="${c.comprobante_url}" target="_blank">Ver</a>` : "—" }</div>
+      <div class="actions"><button class="primary" data-id="${c.id}">Marcar como pagado</button></div>`;
     cont.appendChild(el);
   });
 
