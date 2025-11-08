@@ -15,6 +15,9 @@ const CONFIG = {
 // ======================= GAS (EMAIL/DRIVE) =======================
 const GAS_URL = "https://script.google.com/macros/s/AKfycbyZ27mjG6lnRdvV_MsaOOrr8lD7cN1KDUSaigYeiqVOu8cX_Yw8-xu7QORMhfwyJPvS/exec";
 
+// Proxy para imágenes de Google Drive
+const DRIVE_PROXY_URL = "https://script.google.com/macros/s/AKfycbxyPirSpnyUykA2hlx5zoU0KtRftjU9AnYltF3r3idQLxlirNHUF2WOFuRzEuJPx1XM/exec";
+
 async function gas(action, payload = {}) {
   try {
     const r = await fetch(GAS_URL, {
@@ -61,53 +64,31 @@ async function sheetPatch(id, row) {
 function getDriveIdFromUrl(url) {
   try {
     if (!url) return "";
-    // /file/d/ID/...
     if (url.includes("/file/d/")) {
       return url.split("/file/d/")[1].split("/")[0];
     }
-    // id=ID
     if (url.includes("id=")) {
-      const after = url.split("id=")[1];
-      // corta en & si hay parámetros
-      return after.split("&")[0];
+      return url.split("id=")[1].split("&")[0];
     }
-    // /uc?id=ID
     if (url.includes("/uc?id=")) {
       return url.split("/uc?id=")[1].split("&")[0];
     }
   } catch (_) {}
   return "";
 }
-function getDriveViewUrl(anyDriveUrlOrId) {
-  // Si viene ya como ID, retorna directo
-  if (anyDriveUrlOrId && !anyDriveUrlOrId.includes("http") && anyDriveUrlOrId.length > 20) {
-    return `https://drive.google.com/uc?export=view&id=${anyDriveUrlOrId}`;
-  }
-  const id = getDriveIdFromUrl(anyDriveUrlOrId || "");
-  return id ? `https://drive.google.com/uc?export=view&id=${id}` : (anyDriveUrlOrId || "");
+function getDriveProxyUrl(anyDriveUrlOrId) {
+  const id = getDriveIdFromUrl(anyDriveUrlOrId || anyDriveUrlOrId);
+  return id ? `${DRIVE_PROXY_URL}?id=${id}` : anyDriveUrlOrId;
 }
 
 // ---- YouTube helpers
 function getYouTubeId(url = "") {
   if (!url) return "";
   try {
-    // youtu.be/ID
-    if (url.includes("youtu.be/")) {
-      const tail = url.split("youtu.be/")[1];
-      return tail.split(/[?&]/)[0];
-    }
-    // youtube.com/watch?v=ID
-    if (url.includes("watch?v=")) {
-      const tail = url.split("watch?v=")[1];
-      return tail.split("&")[0];
-    }
-    // embed/ID
-    if (url.includes("/embed/")) {
-      const tail = url.split("/embed/")[1];
-      return tail.split(/[?&]/)[0];
-    }
+    if (url.includes("youtu.be/")) return url.split("youtu.be/")[1].split(/[?&]/)[0];
+    if (url.includes("watch?v=")) return url.split("watch?v=")[1].split("&")[0];
+    if (url.includes("/embed/")) return url.split("/embed/")[1].split(/[?&]/)[0];
   } catch (_) {}
-  // fallback: última parte por si acaso
   return url.split("/").pop().split(/[?&]/)[0];
 }
 
@@ -171,9 +152,7 @@ function renderFiltros() {
 function renderStarsDisplay(rating = 0) {
   const total = 5;
   let html = "";
-  for (let i = 1; i <= total; i++) {
-    html += i <= rating ? "⭐" : '<span style="color:#475569;">★</span>';
-  }
+  for (let i = 1; i <= total; i++) html += i <= rating ? "⭐" : '<span style="color:#475569;">★</span>';
   return html;
 }
 
@@ -195,10 +174,7 @@ function renderCards() {
     })
     .forEach(a => {
       const vId = getYouTubeId(a.video || "");
-      const iframe = vId
-        ? `<iframe class="video" src="https://www.youtube.com/embed/${vId}" allowfullscreen></iframe>`
-        : "";
-
+      const iframe = vId ? `<iframe class="video" src="https://www.youtube.com/embed/${vId}" allowfullscreen></iframe>` : "";
       const rating = Number(a.rating || 0);
       const stars  = renderStarsDisplay(rating);
 
@@ -209,7 +185,7 @@ function renderCards() {
         <span class="badge">120m $${a.p120}</span>
       `;
 
-      // Foto final (Drive/URL directa/fallback)
+      // ✅ Nueva lógica de imágenes (Drive + Proxy)
       let fotoFinal = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
       const posibleFoto =
         a.foto ||
@@ -221,7 +197,7 @@ function renderCards() {
 
       if (posibleFoto) {
         if (posibleFoto.includes("drive.google.com")) {
-          fotoFinal = getDriveViewUrl(posibleFoto);
+          fotoFinal = getDriveProxyUrl(posibleFoto);
         } else if (posibleFoto.startsWith("http")) {
           fotoFinal = posibleFoto;
         }
@@ -238,13 +214,7 @@ function renderCards() {
             onerror="this.src='https://cdn-icons-png.flaticon.com/512/847/847969.png';"
           />
           <h3>${a.nombre_artistico || ""}</h3>
-          <div class="small">${
-            (a.tipo_arte || "")
-              .split(",")
-              .map(s => s.trim())
-              .filter(Boolean)
-              .join(" • ")
-          } • ${a.ciudad || ""}</div>
+          <div class="small">${(a.tipo_arte || "").split(",").map(s => s.trim()).filter(Boolean).join(" • ")} • ${a.ciudad || ""}</div>
           <div class="small">${stars} <span style="margin-left:6px;color:#94a3b8;">(${a.votos || 0})</span></div>
           <p>${a.bio || ""}</p>
           ${iframe}
@@ -282,7 +252,6 @@ async function onRegistro(e) {
       base64
     });
 
-    // ✅ Si el GAS devuelve un id, creamos el link público visible
     if (res.ok && res.id) {
       fotoURL = `https://drive.google.com/uc?export=view&id=${res.id}`;
     } else if (res.url) {
@@ -290,7 +259,6 @@ async function onRegistro(e) {
     }
   }
 
-  // 📋 Guardamos los datos en SheetDB
   const id = uid("A");
   const pin = pin6();
   const row = {
@@ -317,11 +285,8 @@ async function onRegistro(e) {
   };
 
   await sheetPost(row);
-
-  // ✉️ Enviamos PIN al correo
   $("#msg-registro").textContent = "✅ Registro exitoso. Revisa tu correo para tu PIN.";
   await gas("sendPin", { to: [data.correo], artista: data.nombre_artistico, pin });
-
   await cargarArtistas();
   renderCards();
   f.reset();
@@ -368,7 +333,6 @@ function abrirSolicitud(artistaId) {
   $("#admin-content").innerHTML = html;
   sheet.classList.remove("hidden");
 
-  // cálculo dinámico del precio
   $("#duracion").addEventListener("change", e => {
     const dur = e.target.value;
     const precioBase = a[`p${dur}`] || 0;
@@ -376,7 +340,6 @@ function abrirSolicitud(artistaId) {
     $("#precioTotal").innerHTML = `Valor total a pagar: <b>$${total}</b>`;
   });
 
-  // envío del formulario
   $("#form-solicitud").onsubmit = async e => {
     e.preventDefault();
     const fd = Object.fromEntries(new FormData(e.target));
