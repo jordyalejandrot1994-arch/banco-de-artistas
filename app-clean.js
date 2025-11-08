@@ -179,12 +179,20 @@ function renderCards() {
       "beforeend",
       `
       <article class="card">
-        <img 
-  src="${a.foto 
-    ? (a.foto.includes('drive.google.com') 
-        ? a.foto.replace('/view?usp=sharing', '').replace('/file/d/', '/uc?export=view&id=') 
-        : a.foto)
-    : 'https://cdn-icons-png.flaticon.com/512/847/847969.png'}"
+        <img
+  src="${
+    a.foto && a.foto.startsWith('http')
+      ? a.foto.includes('drive.google.com')
+        ? a.foto.replace('/view?usp=sharing', '').replace('/file/d/', '/uc?export=view&id=')
+        : a.foto
+      : a.Foto
+      ? a.Foto
+      : a['Foto del artista']
+      ? a['Foto del artista']
+      : a['foto_artista']
+      ? a['foto_artista']
+      : 'https://cdn-icons-png.flaticon.com/512/847/847969.png'
+  }"
   alt="${a.nombre_artistico || 'Artista'}"
   style="width:100%;height:180px;object-fit:cover;border-radius:12px;border:1px solid #1f2b46"
   onerror="this.src='https://cdn-icons-png.flaticon.com/512/847/847969.png'">
