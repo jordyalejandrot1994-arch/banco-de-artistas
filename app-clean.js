@@ -176,44 +176,37 @@ function renderCards() {
     }
 
     cont.insertAdjacentHTML(
-      "beforeend",
-      `
-      <article class="card">
-        <img
-  src="${
-    a.foto && a.foto.startsWith('http')
-      ? a.foto.includes('drive.google.com')
-        ? a.foto.replace('/view?usp=sharing', '').replace('/file/d/', '/uc?export=view&id=')
-        : a.foto
-      : a.Foto
-      ? a.Foto
-      : a['Foto del artista']
-      ? a['Foto del artista']
-      : a['foto_artista']
-      ? a['foto_artista']
-      : 'https://cdn-icons-png.flaticon.com/512/847/847969.png'
-  }"
-  alt="${a.nombre_artistico || 'Artista'}"
-  style="width:100%;height:180px;object-fit:cover;border-radius:12px;border:1px solid #1f2b46"
-  onerror="this.src='https://cdn-icons-png.flaticon.com/512/847/847969.png'">
-  }"
-  alt="${a.nombre_artistico || 'Artista'}"
-  style="width:100%;height:180px;object-fit:cover;border-radius:12px;border:1px solid #1f2b46"
-  onerror="this.src='https://cdn-icons-png.flaticon.com/512/847/847969.png'">
-        <h3>${a.nombre_artistico || ""}</h3>
-        <div class="small">${(a.tipo_arte || "")
-          .split(",")
-          .map(s => s.trim())
-          .filter(Boolean)
-          .join(" • ")} • ${a.ciudad || ""}</div>
-        <div class="small">${stars} <span style="margin-left:6px;color:#94a3b8;">(${a.votos || 0})</span></div>
-        <p>${a.bio || ""}</p>
-        ${iframe}
-        <div class="actions">${precios}</div>
-        <div class="actions"><button data-id="${a.id}" class="btn-contratar primary">Contratar</button></div>
-      </article>
-    `
-    );
+  "beforeend",
+  `
+  <article class="card">
+    <img
+      src="${
+        a.foto && a.foto.startsWith('http')
+          ? a.foto.includes('drive.google.com')
+            ? a.foto
+                .replace('/view?usp=sharing', '')
+                .replace('/file/d/', '/uc?export=view&id=')
+            : a.foto
+          : 'https://cdn-icons-png.flaticon.com/512/847/847969.png'
+      }"
+      alt="${a.nombre_artistico || 'Artista'}"
+      style="width:100%;height:180px;object-fit:cover;border-radius:12px;border:1px solid #1f2b46;"
+      onerror="this.src='https://cdn-icons-png.flaticon.com/512/847/847969.png';"
+    />
+    <h3>${a.nombre_artistico || ""}</h3>
+    <div class="small">${(a.tipo_arte || "")
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean)
+      .join(" • ")} • ${a.ciudad || ""}</div>
+    <div class="small">${stars} <span style="margin-left:6px;color:#94a3b8;">(${a.votos || 0})</span></div>
+    <p>${a.bio || ""}</p>
+    ${iframe}
+    <div class="actions">${precios}</div>
+    <div class="actions"><button data-id="${a.id}" class="btn-contratar primary">Contratar</button></div>
+  </article>
+`
+);
   });
 
   $$(".btn-contratar").forEach(b => (b.onclick = () => abrirSolicitud(b.dataset.id)));
