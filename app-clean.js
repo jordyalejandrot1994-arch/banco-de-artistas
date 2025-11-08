@@ -61,17 +61,21 @@ async function sheetPatch(id, row) {
 }
 
 // ---- Drive helpers
+// ✅ Nueva versión robusta: detecta TODOS los formatos posibles de Drive
 function getDriveIdFromUrl(url) {
+  if (!url) return "";
   try {
-    if (!url) return "";
-    if (url.includes("/file/d/")) {
-      return url.split("/file/d/")[1].split("/")[0];
-    }
-    if (url.includes("id=")) {
-      return url.split("id=")[1].split("&")[0];
-    }
-    if (url.includes("/uc?id=")) {
-      return url.split("/uc?id=")[1].split("&")[0];
+    // Formatos conocidos
+    const patterns = [
+      /\/file\/d\/([a-zA-Z0-9_-]{25,})/,   // https://drive.google.com/file/d/ID/view
+      /id=([a-zA-Z0-9_-]{25,})/,           // ?id=ID
+      /\/uc\?export=view&id=([a-zA-Z0-9_-]{25,})/, // uc?export=view&id=ID
+      /\/open\?id=([a-zA-Z0-9_-]{25,})/,   // open?id=ID
+      /d\/([a-zA-Z0-9_-]{25,})/            // d/ID
+    ];
+    for (const p of patterns) {
+      const m = url.match(p);
+      if (m) return m[1];
     }
   } catch (_) {}
   return "";
