@@ -30,9 +30,9 @@ async function gas(action, payload = {}) {
 }
 
 // ======================= HELPERS =======================
-const $ = (sel, root = document) => root.querySelector(sel);
+const $  = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
-const uid = (p = "A") => p + Math.random().toString(36).slice(2, 8).toUpperCase();
+const uid  = (p = "A") => p + Math.random().toString(36).slice(2, 8).toUpperCase();
 const pin6 = () => ("" + Math.floor(100000 + Math.random() * 900000));
 
 async function sheetGet() {
@@ -55,6 +55,60 @@ async function sheetPatch(id, row) {
     body: JSON.stringify({ data: row })
   });
   return await r.json();
+}
+
+// ---- Drive helpers
+function getDriveIdFromUrl(url) {
+  try {
+    if (!url) return "";
+    // /file/d/ID/...
+    if (url.includes("/file/d/")) {
+      return url.split("/file/d/")[1].split("/")[0];
+    }
+    // id=ID
+    if (url.includes("id=")) {
+      const after = url.split("id=")[1];
+      // corta en & si hay parámetros
+      return after.split("&")[0];
+    }
+    // /uc?id=ID
+    if (url.includes("/uc?id=")) {
+      return url.split("/uc?id=")[1].split("&")[0];
+    }
+  } catch (_) {}
+  return "";
+}
+function getDriveViewUrl(anyDriveUrlOrId) {
+  // Si viene ya como ID, retorna directo
+  if (anyDriveUrlOrId && !anyDriveUrlOrId.includes("http") && anyDriveUrlOrId.length > 20) {
+    return `https://drive.google.com/uc?export=view&id=${anyDriveUrlOrId}`;
+  }
+  const id = getDriveIdFromUrl(anyDriveUrlOrId || "");
+  return id ? `https://drive.google.com/uc?export=view&id=${id}` : (anyDriveUrlOrId || "");
+}
+
+// ---- YouTube helpers
+function getYouTubeId(url = "") {
+  if (!url) return "";
+  try {
+    // youtu.be/ID
+    if (url.includes("youtu.be/")) {
+      const tail = url.split("youtu.be/")[1];
+      return tail.split(/[?&]/)[0];
+    }
+    // youtube.com/watch?v=ID
+    if (url.includes("watch?v=")) {
+      const tail = url.split("watch?v=")[1];
+      return tail.split("&")[0];
+    }
+    // embed/ID
+    if (url.includes("/embed/")) {
+      const tail = url.split("/embed/")[1];
+      return tail.split(/[?&]/)[0];
+    }
+  } catch (_) {}
+  // fallback: última parte por si acaso
+  return url.split("/").pop().split(/[?&]/)[0];
 }
 
 // ======================= STATE =======================
@@ -106,7 +160,7 @@ async function cargarArtistas() {
 // ======================= FILTROS =======================
 function renderFiltros() {
   const ciudades = [...new Set(ARTISTAS.map(a => a.ciudad).filter(Boolean))].sort();
-  const tipos = [...new Set(ARTISTAS.map(a => a.tipo_arte).filter(Boolean))].sort();
+  const tipos    = [...new Set(ARTISTAS.map(a => a.tipo_arte).filter(Boolean))].sort();
   const fc = $("#f-ciudad"), ft = $("#f-tipo");
   ciudades.forEach(c => fc.insertAdjacentHTML("beforeend", `<option>${c}</option>`));
   tipos.forEach(t => ft.insertAdjacentHTML("beforeend", `<option>${t}</option>`));
@@ -125,89 +179,81 @@ function renderStarsDisplay(rating = 0) {
 
 // ======================= TARJETAS DE ARTISTAS =======================
 function renderCards() {
-  const q = $("#q").value.toLowerCase();
+  const q  = $("#q").value.toLowerCase();
   const fc = $("#f-ciudad").value;
   const ft = $("#f-tipo").value;
   const cont = $("#cards");
   cont.innerHTML = "";
 
-  ARTISTAS.filter(a => {
-    const texto = `${a.nombre_artistico} ${a.ciudad} ${a.tipo_arte}`.toLowerCase();
-    const okQ = !q || texto.includes(q);
-    const okC = !fc || a.ciudad === fc;
-    const okT = !ft || (a.tipo_arte || "").includes(ft);
-    return okQ && okC && okT && a.deleted !== "TRUE";
-  }).forEach(a => {
-    const vId = (a.video || "").includes("watch?v=")
-      ? a.video.split("watch?v=")[1]
-      : (a.video || "").split("/").pop();
-    const iframe = vId
-      ? `<iframe class="video" src="https://www.youtube.com/embed/${vId}" allowfullscreen></iframe>`
-      : "";
+  ARTISTAS
+    .filter(a => {
+      const texto = `${a.nombre_artistico} ${a.ciudad} ${a.tipo_arte}`.toLowerCase();
+      const okQ = !q  || texto.includes(q);
+      const okC = !fc || a.ciudad === fc;
+      const okT = !ft || (a.tipo_arte || "").includes(ft);
+      return okQ && okC && okT && a.deleted !== "TRUE";
+    })
+    .forEach(a => {
+      const vId = getYouTubeId(a.video || "");
+      const iframe = vId
+        ? `<iframe class="video" src="https://www.youtube.com/embed/${vId}" allowfullscreen></iframe>`
+        : "";
 
-    const rating = Number(a.rating || 0);
-    const stars = renderStarsDisplay(rating);
+      const rating = Number(a.rating || 0);
+      const stars  = renderStarsDisplay(rating);
 
-    const precios = `
-      <span class="badge">15m $${a.p15}</span>
-      <span class="badge">30m $${a.p30}</span>
-      <span class="badge">60m $${a.p60}</span>
-      <span class="badge">120m $${a.p120}</span>
-    `;
+      const precios = `
+        <span class="badge">15m $${a.p15}</span>
+        <span class="badge">30m $${a.p30}</span>
+        <span class="badge">60m $${a.p60}</span>
+        <span class="badge">120m $${a.p120}</span>
+      `;
 
-    // ✅ Mostrar correctamente las fotos, incluso las subidas a Google Drive
-    let fotoFinal = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
+      // Foto final (Drive/URL directa/fallback)
+      let fotoFinal = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
+      const posibleFoto =
+        a.foto ||
+        a.Foto ||
+        a["Foto del artista"] ||
+        a["foto_artista"] ||
+        a["foto_artista_url"] ||
+        "";
 
-    if (a.foto) {
-      // Caso 1: Enlace de Google Drive con ?id=
-      if (a.foto.includes("drive.google.com") && a.foto.includes("id=")) {
-        const id = a.foto.split("id=")[1];
-        fotoFinal = `https://drive.google.com/uc?export=view&id=${id}`;
+      if (posibleFoto) {
+        if (posibleFoto.includes("drive.google.com")) {
+          fotoFinal = getDriveViewUrl(posibleFoto);
+        } else if (posibleFoto.startsWith("http")) {
+          fotoFinal = posibleFoto;
+        }
       }
-      // Caso 2: Enlace Drive con /d/ID/
-      else if (a.foto.includes("drive.google.com") && a.foto.includes("/d/")) {
-        const id = a.foto.split("/d/")[1].split("/")[0];
-        fotoFinal = `https://drive.google.com/uc?export=view&id=${id}`;
-      }
-      // Caso 3: Otros enlaces http o https (Imgur, CDN, etc.)
-      else if (a.foto.startsWith("http")) {
-        fotoFinal = a.foto;
-      }
-    }
 
-    cont.insertAdjacentHTML(
-  "beforeend",
-  `
-  <article class="card">
-    <img
-      src="${
-        a.foto && a.foto.startsWith('http')
-          ? a.foto.includes('drive.google.com')
-            ? a.foto
-                .replace('/view?usp=sharing', '')
-                .replace('/file/d/', '/uc?export=view&id=')
-            : a.foto
-          : 'https://cdn-icons-png.flaticon.com/512/847/847969.png'
-      }"
-      alt="${a.nombre_artistico || 'Artista'}"
-      style="width:100%;height:180px;object-fit:cover;border-radius:12px;border:1px solid #1f2b46;"
-      onerror="this.src='https://cdn-icons-png.flaticon.com/512/847/847969.png';"
-    />
-    <h3>${a.nombre_artistico || ""}</h3>
-    <div class="small">${(a.tipo_arte || "")
-      .split(",")
-      .map(s => s.trim())
-      .filter(Boolean)
-      .join(" • ")} • ${a.ciudad || ""}</div>
-    <div class="small">${stars} <span style="margin-left:6px;color:#94a3b8;">(${a.votos || 0})</span></div>
-    <p>${a.bio || ""}</p>
-    ${iframe}
-    <div class="actions">${precios}</div>
-    <div class="actions"><button data-id="${a.id}" class="btn-contratar primary">Contratar</button></div>
-  </article>
-`
-);
-  });
+      cont.insertAdjacentHTML(
+        "beforeend",
+        `
+        <article class="card">
+          <img
+            src="${fotoFinal}"
+            alt="${a.nombre_artistico || "Artista"}"
+            style="width:100%;height:180px;object-fit:cover;border-radius:12px;border:1px solid #1f2b46;"
+            onerror="this.src='https://cdn-icons-png.flaticon.com/512/847/847969.png';"
+          />
+          <h3>${a.nombre_artistico || ""}</h3>
+          <div class="small">${
+            (a.tipo_arte || "")
+              .split(",")
+              .map(s => s.trim())
+              .filter(Boolean)
+              .join(" • ")
+          } • ${a.ciudad || ""}</div>
+          <div class="small">${stars} <span style="margin-left:6px;color:#94a3b8;">(${a.votos || 0})</span></div>
+          <p>${a.bio || ""}</p>
+          ${iframe}
+          <div class="actions">${precios}</div>
+          <div class="actions"><button data-id="${a.id}" class="btn-contratar primary">Contratar</button></div>
+        </article>
+        `
+      );
+    });
 
   $$(".btn-contratar").forEach(b => (b.onclick = () => abrirSolicitud(b.dataset.id)));
 }
@@ -261,9 +307,9 @@ async function onRegistro(e) {
     correo: data.correo,
     celular: data.celular,
     tipo_arte: data.tipo_arte,
-    p15: data.p15, 
-    p30: data.p30, 
-    p60: data.p60, 
+    p15: data.p15,
+    p30: data.p30,
+    p60: data.p60,
     p120: data.p120,
     bio: data.bio,
     pin,
