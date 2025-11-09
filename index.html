@@ -6,10 +6,42 @@
   <meta name="theme-color" content="#0ea5e9" />
   <title>Banco de Artistas</title>
   <link rel="stylesheet" href="style-v2.css">
+  <style>
+    /* Estilos específicos del panel admin (complemento, no reemplaza style-v2.css) */
+    #admin { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 999; }
+    #admin.open { display: flex; }
+    #admin-panel { background: var(--panel); border-radius: 14px; width: 94%; max-width: 980px; padding: 18px; box-shadow: 0 0 20px rgba(14,165,233,0.3); color: var(--text); max-height: 92vh; overflow-y: auto; }
+    .admin-header { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px; }
+    .admin-header h2{ color:var(--accent); margin:0; }
+    .admin-controls { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center;}
+    .admin-controls input, .admin-controls select { padding:8px; border-radius:8px; background:#0e1625; border:1px solid #1f2b46; color:var(--text); }
+    .admin-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .tabla-admin { width:100%; margin-top:10px; display:flex; flex-direction:column; gap:8px; }
+    .fila-artista { display:flex; gap:12px; align-items:flex-start; background:#0f172a; padding:10px; border-radius:10px; border-left:4px solid transparent; transition:0.18s; }
+    .fila-artista:hover { transform:translateY(-4px); }
+    .fila-artista img { width:72px; height:72px; border-radius:8px; object-fit:cover; border:1px solid #1f2b46; }
+    .fila-info { flex:1; min-width:0; }
+    .fila-info h4 { margin:0 0 4px 0; color:var(--accent); font-size:1rem; }
+    .fila-info .meta { color:var(--muted); font-size:0.9rem; margin-bottom:6px; }
+    .fila-info .bio { color:var(--text); font-size:0.9rem; margin-bottom:6px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .fila-actions { display:flex; flex-direction:column; gap:6px; align-items:flex-end; min-width:110px; }
+    .fila-actions button { border:none; background:#111827; color:var(--text); padding:6px 8px; border-radius:8px; cursor:pointer; }
+    .fila-actions button.aprobar { background:#10b981; color:#062a1c; }
+    .fila-actions button.rechazar { background:#ef4444; color:#fff; }
+    .fila-actions button.borrar { background:#7c2d12; color:#fff; }
+    .estado-pill { padding:4px 8px; border-radius:999px; font-weight:600; font-size:0.8rem; color:#062a1c; background:#a7f3d0; }
+    .estado-rechazado { background:#fecaca; color:#7f1d1d; }
+    .estado-pendiente { background:#fde68a; color:#92400e; }
+    .area-edit { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
+    .area-edit input, .area-edit textarea { padding:6px; border-radius:8px; background:#0e1625; border:1px solid #1f2b46; color:var(--text); }
+    .small-muted { font-size:0.85rem; color:var(--muted); }
+    .calc-comm { margin-top:6px; font-size:0.9rem; color:var(--muted); }
+    @media (max-width:700px){ .fila-actions{ align-items:flex-start; min-width:0; } .fila-artista{ flex-direction:column; align-items:flex-start; } .fila-info{ width:100%; } }
+  </style>
 </head>
 
 <body>
-  <header>
+  <header id="app-header">
     <h1>Banco de Artistas</h1>
   </header>
 
@@ -47,18 +79,13 @@
       <label>Precio 120 min<input name="p120" required></label>
       <label>Biografía / Descripción<textarea name="bio"></textarea></label>
 
-      <!-- 🖼️ NUEVA SECCIÓN POSTIMAGES -->
+      <!-- Postimages flow (input de enlace) -->
       <div class="foto-uploader">
         <label>Foto del artista</label>
         <button type="button" class="secondary" onclick="window.open('https://postimages.org/', '_blank')">
           📸 Subir foto en Postimages
         </button>
-        <p class="hint">
-          1️⃣ Se abrirá una nueva pestaña.<br>
-          2️⃣ Sube tu foto.<br>
-          3️⃣ Copia el <strong>enlace directo (Direct link)</strong> que termina en <strong>.jpg</strong> o <strong>.png</strong>.<br>
-          4️⃣ Pega ese enlace aquí 👇
-        </p>
+        <p class="hint">1) Sube la foto en Postimages → 2) Copia el "Direct link" que termina en .jpg o .png → 3) Pégalo abajo</p>
         <input type="url" id="foto" name="foto" placeholder="Pega aquí el enlace directo de tu imagen" required>
         <p id="alerta-foto" class="alerta"></p>
         <img id="preview-foto" class="preview hidden" alt="Previsualización de la foto">
@@ -94,89 +121,416 @@
     <div id="reservas-usuario"></div>
   </div>
 
-  <!-- PANEL DE ADMIN -->
-  <div id="admin" class="hidden">
-    <div id="admin-content"></div>
-    <button id="close-admin">Cerrar</button>
+  <!-- PANEL DE ADMIN (oculto por defecto) -->
+  <div id="admin" aria-hidden="true">
+    <div id="admin-panel" role="dialog" aria-modal="true">
+      <div class="admin-header">
+        <h2>Panel de Administración</h2>
+        <div>
+          <button id="btn-calc-comm" title="Calcular comisiones">📊 Comisiones</button>
+          <button id="btn-recargar">🔄 Recargar</button>
+          <button id="btn-close-admin">Cerrar</button>
+        </div>
+      </div>
+
+      <div class="admin-controls">
+        <input id="buscarAdmin" type="text" placeholder="Buscar por nombre, ciudad o cédula...">
+        <select id="filtroEstadoAdmin">
+          <option value="">Todos los estados</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="aprobado">Aprobado</option>
+          <option value="rechazado">Rechazado</option>
+        </select>
+        <select id="filtroCiudadAdmin"><option value="">Todas las ciudades</option></select>
+        <select id="filtroTipoAdmin"><option value="">Todos los tipos</option></select>
+      </div>
+
+      <div id="tablaArtistas" class="tabla-admin">
+        <p class="small-muted">Cargando artistas...</p>
+      </div>
+      <div id="admin-footer" style="margin-top:14px;">
+        <p class="small-muted">Acceso secreto: 4 toques en el encabezado (móvil) o Ctrl + Alt + A (desktop). Administrador: <strong>Admin2026</strong></p>
+      </div>
+    </div>
   </div>
 
-  <!-- 📜 VALIDACIÓN Y PREVISUALIZACIÓN DE IMAGEN -->
+  <!-- Scripts -->
   <script>
-    const inputFoto = document.getElementById("foto");
-    const alertaFoto = document.getElementById("alerta-foto");
-    const preview = document.getElementById("preview-foto");
+    /* ======================= CONFIG ======================= */
+    const CONFIG = {
+      SHEETDB_ENDPOINT: "https://sheetdb.io/api/v1/jaa331n4u5icl",
+      ADMIN_PASSWORD: "Admin2026",
+      COMMISSION_USER: 0.10,
+      COMMISSION_ARTIST: 0.05
+    };
 
-    inputFoto.addEventListener("input", () => {
-      const url = inputFoto.value.trim();
-      const esValida = /^https:\/\/i\.postimg\.cc\/.*\.(jpg|jpeg|png)$/i.test(url);
+    /* ======================= UTIL: fetch JSON safe ======================= */
+    async function fetchJson(url, opts) {
+      const res = await fetch(url, opts);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    }
 
-      if (esValida) {
-        alertaFoto.textContent = "✅ Enlace válido. Imagen lista para subir.";
-        alertaFoto.style.color = "#10b981";
-        preview.src = url;
-        preview.classList.remove("hidden");
-      } else if (url.length > 0) {
-        alertaFoto.textContent = "⚠️ El enlace no es válido. Asegúrate de copiar el 'Enlace directo' que termina en .jpg o .png desde Postimages.";
-        alertaFoto.style.color = "#ef4444";
-        preview.classList.add("hidden");
-      } else {
-        alertaFoto.textContent = "";
-        preview.classList.add("hidden");
+    /* ======================= UI: Header taps (movil) y combo (desktop) ======================= */
+    (function setupSecretAccess(){
+      let taps = 0;
+      let lastTap = 0;
+      const header = document.getElementById('app-header');
+      header.addEventListener('click', (e)=>{
+        const now = Date.now();
+        if (now - lastTap < 700) taps++; else taps = 1;
+        lastTap = now;
+        if (taps === 4) {
+          promptAdminPasswordAndOpen();
+          taps = 0;
+        }
+      });
+
+      // Desktop combo Ctrl + Alt + A
+      document.addEventListener('keydown', (e)=>{
+        if (e.ctrlKey && e.altKey && (e.key === 'a' || e.key === 'A')) {
+          promptAdminPasswordAndOpen();
+        }
+      });
+
+      // Also provide an input-based open (optional)
+      function promptAdminPasswordAndOpen(){
+        const pass = prompt("Ingrese contraseña de administrador:");
+        if (pass === CONFIG.ADMIN_PASSWORD) abrirPanelAdmin();
+        else if (pass) alert('Contraseña incorrecta.');
       }
-    });
+    })();
 
-    // ======================= REGISTRAR ARTISTA =======================
-    document.getElementById("form-registro").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const msg = document.getElementById("msg-registro");
-      msg.textContent = "";
+    /* ======================= PANEL: open/close/reload ======================= */
+    const adminEl = document.getElementById('admin');
+    const tablaArtistasEl = document.getElementById('tablaArtistas');
+    document.getElementById('btn-close-admin').addEventListener('click', ()=> closePanelAdmin());
+    document.getElementById('btn-recargar').addEventListener('click', ()=> cargarArtistasAdmin());
+    document.getElementById('btn-calc-comm').addEventListener('click', ()=> calcularComisionesGlobales());
 
-      const form = e.target;
-      const fotoURL = form.foto.value.trim();
+    function abrirPanelAdmin(){
+      adminEl.classList.add('open'); adminEl.setAttribute('aria-hidden','false');
+      cargarArtistasAdmin();
+      populateFilterOptions();
+    }
+    function closePanelAdmin(){
+      adminEl.classList.remove('open'); adminEl.setAttribute('aria-hidden','true');
+      tablaArtistasEl.innerHTML = '';
+    }
 
-      const esValida = /^https:\/\/i\.postimg\.cc\/.*\.(jpg|jpeg|png)$/i.test(fotoURL);
-      if (!esValida) {
-        msg.textContent = "❌ No puedes registrar. El enlace de la foto no es válido.";
-        msg.style.color = "#ef4444";
-        return;
-      }
-
-      const artista = {
-        nombre_artistico: form.nombre_artistico.value,
-        nombre_real: form.nombre_real.value,
-        cedula: form.cedula.value,
-        ciudad: form.ciudad.value,
-        correo: form.correo.value,
-        celular: form.celular.value,
-        tipo_arte: form.tipo_arte.value,
-        p15: form.p15.value,
-        p30: form.p30.value,
-        p60: form.p60.value,
-        p120: form.p120.value,
-        bio: form.bio.value,
-        foto: fotoURL,
-        video: form.video.value
-      };
-
+    /* ======================= FILTROS => poblar ciudades/tipos locales para select admin ======================= */
+    async function populateFilterOptions(){
       try {
-        await fetch("https://sheetdb.io/api/v1/jaa331n4u5icl", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ data: [artista] }),
+        const data = (await fetchJson(CONFIG.SHEETDB_ENDPOINT)).data || [];
+        const ciudades = Array.from(new Set(data.map(d=> (d.ciudad||'').trim()).filter(Boolean))).sort();
+        const tipos = Array.from(new Set(data.map(d=> (d.tipo_arte||'').trim()).filter(Boolean))).sort();
+
+        const sCiudad = document.getElementById('filtroCiudadAdmin');
+        const sTipo = document.getElementById('filtroTipoAdmin');
+        sCiudad.innerHTML = '<option value="">Todas las ciudades</option>';
+        sTipo.innerHTML = '<option value="">Todos los tipos</option>';
+        ciudades.forEach(c=> sCiudad.insertAdjacentHTML('beforeend', `<option value="${c}">${c}</option>`));
+        tipos.forEach(t=> sTipo.insertAdjacentHTML('beforeend', `<option value="${t}">${t}</option>`));
+      } catch(err){ console.error('populateFilterOptions', err); }
+    }
+
+    /* ======================= CARGAR ARTISTAS (ADMIN) ======================= */
+    async function cargarArtistasAdmin(){
+      tablaArtistasEl.innerHTML = `<p class="small-muted">Cargando artistas...</p>`;
+      try {
+        const res = await fetchJson(CONFIG.SHEETDB_ENDPOINT);
+        const data = res.data || [];
+
+        // aplicar filtros del UI
+        const q = document.getElementById('buscarAdmin').value.trim().toLowerCase();
+        const estadoFilter = document.getElementById('filtroEstadoAdmin').value;
+        const ciudadFilter = document.getElementById('filtroCiudadAdmin').value;
+        const tipoFilter = document.getElementById('filtroTipoAdmin').value;
+
+        const filtrados = data.filter(a=>{
+          if (estadoFilter && ((a.estado||'pendiente').toLowerCase() !== estadoFilter)) return false;
+          if (ciudadFilter && (a.ciudad||'').trim() !== ciudadFilter) return false;
+          if (tipoFilter && (a.tipo_arte||'').trim() !== tipoFilter) return false;
+          if (!q) return true;
+          const hay = `${a.nombre_artistico} ${a.nombre_real} ${a.ciudad} ${a.tipo_arte} ${a.cedula}`.toLowerCase();
+          return hay.includes(q);
         });
-        msg.textContent = "✅ Artista registrado correctamente.";
-        msg.style.color = "#10b981";
-        form.reset();
-        preview.classList.add("hidden");
-        alertaFoto.textContent = "";
-      } catch (error) {
-        console.error(error);
-        msg.textContent = "❌ Error al registrar al artista.";
-        msg.style.color = "#ef4444";
+
+        if (filtrados.length === 0) {
+          tablaArtistasEl.innerHTML = `<p class="small-muted">No hay registros que coincidan.</p>`;
+          return;
+        }
+
+        const html = filtrados.map((a,i)=> renderFilaArtista(a)).join('');
+        tablaArtistasEl.innerHTML = html;
+
+        // listeners delegados (editar, aprobar, rechazar, borrar, guardar)
+        tablaArtistasEl.querySelectorAll('.btn-approve').forEach(btn=> btn.addEventListener('click', async (ev)=>{
+          const ced = ev.currentTarget.dataset.ced;
+          await actualizarEstadoPorCedula(ced, 'aprobado');
+        }));
+        tablaArtistasEl.querySelectorAll('.btn-reject').forEach(btn=> btn.addEventListener('click', async (ev)=>{
+          const ced = ev.currentTarget.dataset.ced;
+          await actualizarEstadoPorCedula(ced, 'rechazado');
+        }));
+        tablaArtistasEl.querySelectorAll('.btn-delete').forEach(btn=> btn.addEventListener('click', async (ev)=>{
+          const ced = ev.currentTarget.dataset.ced;
+          await eliminarPorCedula(ced);
+        }));
+
+        tablaArtistasEl.querySelectorAll('.btn-toggle-edit').forEach(btn=> btn.addEventListener('click', (ev)=>{
+          const id = ev.currentTarget.dataset.ced;
+          const area = document.getElementById('edit-area-'+id);
+          if (area) area.style.display = area.style.display === 'none' ? 'flex' : 'none';
+        }));
+
+        tablaArtistasEl.querySelectorAll('.btn-save-edit').forEach(btn=> btn.addEventListener('click', async (ev)=>{
+          const ced = ev.currentTarget.dataset.ced;
+          const container = document.getElementById('edit-area-'+ced);
+          if (!container) return;
+          const nombre_artistico = container.querySelector('[data-field="nombre_artistico"]').value;
+          const ciudad = container.querySelector('[data-field="ciudad"]').value;
+          const tipo_arte = container.querySelector('[data-field="tipo_arte"]').value;
+          const p15 = container.querySelector('[data-field="p15"]').value;
+          const p30 = container.querySelector('[data-field="p30"]').value;
+          const p60 = container.querySelector('[data-field="p60"]').value;
+          const p120 = container.querySelector('[data-field="p120"]').value;
+          const bio = container.querySelector('[data-field="bio"]').value;
+          const foto = container.querySelector('[data-field="foto"]').value;
+          const video = container.querySelector('[data-field="video"]').value;
+
+          await editarPorCedula(ced, { nombre_artistico, ciudad, tipo_arte, p15, p30, p60, p120, bio, foto, video });
+        }));
+
+        // filtros reacciones
+        document.getElementById('buscarAdmin').oninput = () => cargarArtistasAdmin();
+        document.getElementById('filtroEstadoAdmin').onchange = () => cargarArtistasAdmin();
+        document.getElementById('filtroCiudadAdmin').onchange = () => cargarArtistasAdmin();
+        document.getElementById('filtroTipoAdmin').onchange = () => cargarArtistasAdmin();
+
+      } catch(err){
+        console.error(err);
+        tablaArtistasEl.innerHTML = `<p class="small-muted">Error al cargar registros.</p>`;
       }
-    });
+    }
+
+    /* ======================= RENDER fila de artista (HTML) ======================= */
+    function renderFilaArtista(a){
+      const estado = (a.estado || 'pendiente').toLowerCase();
+      const estadoLabel = estado === 'aprobado' ? `<span class="estado-pill">APROBADO</span>` :
+                          estado === 'rechazado' ? `<span class="estado-pill estado-rechazado">RECHAZADO</span>` :
+                          `<span class="estado-pill estado-pendiente">PENDIENTE</span>`;
+
+      const foto = a.foto || 'https://via.placeholder.com/240x180?text=Sin+foto';
+      // area edit (oculta por defecto)
+      const editArea = `
+        <div id="edit-area-${escapeId(a.cedula)}" class="area-edit" style="display:none;">
+          <input data-field="nombre_artistico" value="${escapeHtml(a.nombre_artistico||'')}" />
+          <input data-field="ciudad" value="${escapeHtml(a.ciudad||'')}" />
+          <input data-field="tipo_arte" value="${escapeHtml(a.tipo_arte||'')}" />
+          <input data-field="p15" value="${escapeHtml(a.p15||'')}" placeholder="p15" />
+          <input data-field="p30" value="${escapeHtml(a.p30||'')}" placeholder="p30" />
+          <input data-field="p60" value="${escapeHtml(a.p60||'')}" placeholder="p60" />
+          <input data-field="p120" value="${escapeHtml(a.p120||'')}" placeholder="p120" />
+          <input data-field="foto" value="${escapeHtml(a.foto||'')}" placeholder="enlace de imagen" />
+          <input data-field="video" value="${escapeHtml(a.video||'')}" placeholder="youtube link" />
+          <textarea data-field="bio" rows="2" style="min-width:200px;">${escapeHtml(a.bio||'')}</textarea>
+          <div style="display:flex; gap:8px;">
+            <button class="btn-save-edit" data-ced="${escapeHtml(a.cedula||'')}">Guardar</button>
+            <button class="btn-toggle-edit" data-ced="${escapeHtml(a.cedula||'')}">Cerrar</button>
+          </div>
+          <div class="calc-comm">Precio 30m: ${a.p30||'0'} | Tu (10%): ${calcCommission(a.p30, CONFIG.COMMISSION_USER)} | Artista (5%): ${calcCommission(a.p30, CONFIG.COMMISSION_ARTIST)}</div>
+        </div>
+      `;
+
+      return `
+        <div class="fila-artista ${escapeHtml(estado)}">
+          <img src="${escapeHtml(foto)}" alt="${escapeHtml(a.nombre_artistico||'artista')}">
+          <div class="fila-info">
+            <h4>${escapeHtml(a.nombre_artistico||'Sin nombre')}</h4>
+            <div class="meta">${escapeHtml(a.tipo_arte||'')} • ${escapeHtml(a.ciudad||'')} • Céd: ${escapeHtml(a.cedula||'')}</div>
+            <div class="bio">${escapeHtml(a.bio||'')}</div>
+            ${editArea}
+          </div>
+          <div class="fila-actions">
+            ${estadoLabel}
+            <div style="display:flex; gap:6px; margin-top:8px;">
+              <button class="btn-approve aprobar" data-ced="${escapeHtml(a.cedula||'')}">✅ Aprobar</button>
+              <button class="btn-reject rechazar" data-ced="${escapeHtml(a.cedula||'')}">❌ Rechazar</button>
+              <button class="btn-delete borrar" data-ced="${escapeHtml(a.cedula||'')}">🗑️ Borrar</button>
+            </div>
+            <div style="margin-top:8px;">
+              <button class="btn-toggle-edit" data-ced="${escapeHtml(a.cedula||'')}">✏️ Editar</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    /* ======================= HELPERS: escapeHtml / escapeId ======================= */
+    function escapeHtml(s){ if(!s && s!==0) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
+    function escapeId(s){ return String(s||'').replaceAll(/[^a-z0-9\-_]/ig,'_'); }
+
+    /* ======================= ACTIONS: actualizar estado por cédula ======================= */
+    async function actualizarEstadoPorCedula(cedula, nuevoEstado){
+      if (!confirm(`Cambiar estado a ${nuevoEstado.toUpperCase()} para cedula ${cedula}?`)) return;
+      try {
+        // PATCH support: sheetdb allows /cedula/{value}
+        await fetchJson(`${CONFIG.SHEETDB_ENDPOINT}/cedula/${encodeURIComponent(cedula)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: [{ estado: nuevoEstado }] })
+        });
+        alert('✅ Estado actualizado.');
+        cargarArtistasAdmin();
+      } catch(err){
+        console.error(err);
+        alert('Error actualizando estado.');
+      }
+    }
+
+    /* ======================= ACTION: editar por cédula ======================= */
+    async function editarPorCedula(cedula, campos){
+      if (!confirm(`Guardar cambios para cédula ${cedula}?`)) return;
+      // Build payload only with provided fields (non-empty)
+      const payload = {};
+      for (const k in campos) if (typeof campos[k] !== 'undefined') payload[k] = campos[k];
+      try {
+        await fetchJson(`${CONFIG.SHEETDB_ENDPOINT}/cedula/${encodeURIComponent(cedula)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: [payload] })
+        });
+        alert('✅ Cambios guardados.');
+        cargarArtistasAdmin();
+      } catch(err){
+        console.error(err);
+        alert('Error guardando cambios.');
+      }
+    }
+
+    /* ======================= ACTION: eliminar por cédula ======================= */
+    async function eliminarPorCedula(cedula){
+      if (!confirm(`Eliminar registro de ${cedula} (acción irreversible)?`)) return;
+      try {
+        await fetchJson(`${CONFIG.SHEETDB_ENDPOINT}/cedula/${encodeURIComponent(cedula)}`, {
+          method: 'DELETE'
+        });
+        alert('🗑️ Registrado eliminado.');
+        cargarArtistasAdmin();
+      } catch(err){
+        console.error(err);
+        alert('Error eliminando.');
+      }
+    }
+
+    /* ======================= UTIL: calc commission (handles numeric strings) ======================= */
+    function calcCommission(value, ratio){
+      const n = parseFloat(String(value||'').replace(/[^\d\.\-]/g,''));
+      if (isNaN(n)) return '-';
+      const c = (n * ratio);
+      return Number.isFinite(c) ? c.toFixed(2) : '-';
+    }
+
+    /* ======================= GLOBAL COMMISSIONS SUMMARY ======================= */
+    async function calcularComisionesGlobales(){
+      try {
+        const res = await fetchJson(CONFIG.SHEETDB_ENDPOINT);
+        const data = res.data || [];
+        let totalUserCommission = 0;
+        let totalArtistCommission = 0;
+        data.forEach(a=>{
+          const price = parseFloat(String(a.p30||'0').replace(/[^\d\.]/g,'')) || 0;
+          totalUserCommission += price * CONFIG.COMMISSION_USER;
+          totalArtistCommission += price * CONFIG.COMMISSION_ARTIST;
+        });
+        alert(`Comisiones calculadas (sobre tarifa p30):\n- Tu (10%): $${totalUserCommission.toFixed(2)}\n- Artistas (5%): $${totalArtistCommission.toFixed(2)}\nRegistros contados: ${data.length}`);
+      } catch(err){
+        console.error(err);
+        alert('Error calculando comisiones.');
+      }
+    }
+
+    /* ======================= VALIDACIÓN Y PREVIEW EN FORM REGISTRO (Postimages) ======================= */
+    (function setupRegistroPreview(){
+      const inputFoto = document.getElementById("foto");
+      const alertaFoto = document.getElementById("alerta-foto");
+      const preview = document.getElementById("preview-foto");
+      inputFoto.addEventListener("input", ()=>{
+        const url = inputFoto.value.trim();
+        const esValida = /^https:\/\/i\.postimg\.cc\/.*\.(jpg|jpeg|png|gif)$/i.test(url) || /\.(jpg|jpeg|png|gif)$/i.test(url);
+        if (esValida) {
+          alertaFoto.textContent = "✅ Enlace válido. Previsualizando...";
+          alertaFoto.style.color = "#10b981";
+          preview.src = url;
+          preview.classList.remove("hidden");
+        } else if (url.length>0) {
+          alertaFoto.textContent = "⚠️ El enlace no parece válido. Asegúrate de pegar el enlace directo que termina en .jpg o .png.";
+          alertaFoto.style.color = "#ef4444";
+          preview.classList.add("hidden");
+        } else {
+          alertaFoto.textContent = "";
+          preview.classList.add("hidden");
+        }
+      });
+
+      // submit registro (ya tienes lógica anterior, la reimplemento para compatibilidad)
+      const form = document.getElementById('form-registro');
+      form.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const msg = document.getElementById('msg-registro'); msg.textContent = ''; msg.style.color = '';
+        const fotoURL = form.foto.value.trim();
+        const esValida = /\.(jpg|jpeg|png|gif)$/i.test(fotoURL);
+        if (!esValida) {
+          msg.textContent = "❌ El enlace de la foto no es válido.";
+          msg.style.color = "#ef4444";
+          return;
+        }
+        const artista = {
+          nombre_artistico: form.nombre_artistico.value,
+          nombre_real: form.nombre_real.value,
+          cedula: form.cedula.value,
+          ciudad: form.ciudad.value,
+          correo: form.correo.value,
+          celular: form.celular.value,
+          tipo_arte: form.tipo_arte.value,
+          p15: form.p15.value,
+          p30: form.p30.value,
+          p60: form.p60.value,
+          p120: form.p120.value,
+          bio: form.bio.value,
+          foto: fotoURL,
+          video: form.video.value,
+          estado: 'pendiente', // por defecto pendiente
+          creado_en: new Date().toISOString()
+        };
+        try {
+          await fetchJson(CONFIG.SHEETDB_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: [artista] })
+          });
+          msg.textContent = "✅ Artista registrado correctamente. Pendiente de revisión.";
+          msg.style.color = "#10b981";
+          form.reset();
+          preview.classList.add("hidden");
+        } catch(err){
+          console.error(err);
+          msg.textContent = "❌ Error al registrar al artista.";
+          msg.style.color = "#ef4444";
+        }
+      });
+    })();
+
+    // Auto-close admin if clicked outside panel
+    adminEl.addEventListener('click', (e)=>{ if (e.target === adminEl) closePanelAdmin(); });
+
+    // Expose abrirPanelAdmin to global in case user wants to call it
+    window.abrirPanelAdmin = abrirPanelAdmin;
+
   </script>
 
+  <!-- tu app-clean.js se carga al final (si lo necesitas) -->
   <script src="app-clean.js"></script>
 </body>
 </html>
