@@ -60,6 +60,8 @@
           4️⃣ Pega ese enlace aquí 👇
         </p>
         <input type="url" id="foto" name="foto" placeholder="Pega aquí el enlace directo de tu imagen" required>
+        <p id="alerta-foto" class="alerta"></p>
+        <img id="preview-foto" class="preview hidden" alt="Previsualización de la foto">
       </div>
 
       <label>Video (YouTube)<input name="video" placeholder="https://youtube.com/..."></label>
@@ -98,8 +100,32 @@
     <button id="close-admin">Cerrar</button>
   </div>
 
-  <!-- 📜 VALIDACIÓN OPCIONAL DE ENLACE DE IMAGEN -->
+  <!-- 📜 VALIDACIÓN Y PREVISUALIZACIÓN DE IMAGEN -->
   <script>
+    const inputFoto = document.getElementById("foto");
+    const alertaFoto = document.getElementById("alerta-foto");
+    const preview = document.getElementById("preview-foto");
+
+    inputFoto.addEventListener("input", () => {
+      const url = inputFoto.value.trim();
+      const esValida = /^https:\/\/i\.postimg\.cc\/.*\.(jpg|jpeg|png)$/i.test(url);
+
+      if (esValida) {
+        alertaFoto.textContent = "✅ Enlace válido. Imagen lista para subir.";
+        alertaFoto.style.color = "#10b981";
+        preview.src = url;
+        preview.classList.remove("hidden");
+      } else if (url.length > 0) {
+        alertaFoto.textContent = "⚠️ El enlace no es válido. Asegúrate de copiar el 'Enlace directo' que termina en .jpg o .png desde Postimages.";
+        alertaFoto.style.color = "#ef4444";
+        preview.classList.add("hidden");
+      } else {
+        alertaFoto.textContent = "";
+        preview.classList.add("hidden");
+      }
+    });
+
+    // ======================= REGISTRAR ARTISTA =======================
     document.getElementById("form-registro").addEventListener("submit", async (e) => {
       e.preventDefault();
       const msg = document.getElementById("msg-registro");
@@ -108,10 +134,10 @@
       const form = e.target;
       const fotoURL = form.foto.value.trim();
 
-      // Validar que sea un enlace correcto
-      const esImagen = /\.(jpg|jpeg|png|gif)$/i.test(fotoURL);
-      if (!esImagen) {
-        msg.textContent = "⚠️ El enlace de la foto no parece ser una imagen válida (.jpg o .png).";
+      const esValida = /^https:\/\/i\.postimg\.cc\/.*\.(jpg|jpeg|png)$/i.test(fotoURL);
+      if (!esValida) {
+        msg.textContent = "❌ No puedes registrar. El enlace de la foto no es válido.";
+        msg.style.color = "#ef4444";
         return;
       }
 
@@ -128,7 +154,7 @@
         p60: form.p60.value,
         p120: form.p120.value,
         bio: form.bio.value,
-        foto: form.foto.value,
+        foto: fotoURL,
         video: form.video.value
       };
 
@@ -139,10 +165,14 @@
           body: JSON.stringify({ data: [artista] }),
         });
         msg.textContent = "✅ Artista registrado correctamente.";
+        msg.style.color = "#10b981";
         form.reset();
+        preview.classList.add("hidden");
+        alertaFoto.textContent = "";
       } catch (error) {
         console.error(error);
         msg.textContent = "❌ Error al registrar al artista.";
+        msg.style.color = "#ef4444";
       }
     });
   </script>
