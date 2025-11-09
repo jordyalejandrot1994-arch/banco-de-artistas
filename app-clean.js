@@ -367,3 +367,17 @@ function abrirSolicitud(artistaId) {
       comprobante_url: "",
       precio_total: total
     };
+
+    CONTRATOS.push(contrato);
+    $("#msg-solicitud").textContent = "✅ Su solicitud fue realizada. Espere confirmación del artista.";
+
+    await gas("notifyNewBooking", {
+      to: [a.correo],
+      artista: a.nombre_artistico,
+      fecha: contrato.fecha,
+      duracion: contrato.duracion,
+      ciudad: contrato.ciudad,
+      mensaje: contrato.mensaje
+    });
+  };
+}
