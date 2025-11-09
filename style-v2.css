@@ -107,12 +107,12 @@ nav.tabs button:hover {
 }
 
 /* ===========================================
-   TARJETAS DE ARTISTAS (versión optimizada)
+   TARJETAS DE ARTISTAS
 =========================================== */
 #cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 20px;
+  gap: 16px;
   padding: 20px;
   max-width: 1200px;
   margin: auto;
@@ -121,49 +121,51 @@ nav.tabs button:hover {
 .card {
   background: var(--card);
   border-radius: var(--radius);
-  overflow: hidden;
+  padding: 16px;
   box-shadow: var(--shadow);
-  transition: transform 0.3s ease, box-shadow 0.3s ease, border 0.3s ease;
+  transition: var(--transition);
   position: relative;
-  border: 1px solid rgba(255,255,255,0.05);
 }
 
 .card:hover {
-  transform: translateY(-6px) scale(1.02);
-  border: 1px solid var(--accent);
-  box-shadow: 0 0 18px rgba(14,165,233,0.35);
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(14,165,233,0.3);
 }
 
 .card img {
   width: 100%;
-  height: 220px;
+  height: 180px;
   object-fit: cover;
-  border-bottom: 1px solid #1f2b46;
-  display: block;
+  border-radius: var(--radius);
+  border: 1px solid #1f2b46;
+  margin-bottom: 10px;
 }
 
 .card h3 {
   color: var(--accent);
-  font-size: 1.1rem;
-  margin: 12px 0 6px 0;
+  font-size: 1.2rem;
+  margin-bottom: 4px;
 }
 
 .card .small {
   color: var(--muted);
   font-size: 0.9rem;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .card p {
-  font-size: 0.92rem;
-  line-height: 1.4em;
-  color: var(--text);
-  margin-bottom: 10px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 3; /* muestra solo 3 líneas */
-  -webkit-box-orient: vertical;
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+}
+
+.badge {
+  display: inline-block;
+  background: var(--accent);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  margin: 2px;
 }
 
 button.primary {
@@ -175,13 +177,10 @@ button.primary {
   cursor: pointer;
   transition: var(--transition);
   font-weight: 600;
-  width: 100%;
-  text-align: center;
 }
 
 button.primary:hover {
   background: var(--accent-2);
-  box-shadow: 0 0 8px rgba(34,211,238,0.3);
 }
 
 button {
@@ -319,10 +318,6 @@ iframe.video {
   #cards {
     grid-template-columns: 1fr;
   }
-
-  .card img {
-    height: 200px;
-  }
 }
 
 /* ===========================================
@@ -363,56 +358,3 @@ nav.tabs button.active {
   color: #fff;
   border-color: var(--accent);
   box-shadow: 0 0 10px rgba(14,165,233,0.4);
-}
-
-/* ===========================================
-   SECCIÓN POSTIMAGES (nuevo)
-=========================================== */
-.foto-uploader {
-  background: #111827;
-  border: 1px solid var(--accent);
-  border-radius: 12px;
-  padding: 14px;
-  margin: 12px 0 20px;
-}
-
-.foto-uploader .secondary {
-  background-color: var(--accent);
-  color: white;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: var(--transition);
-}
-
-.foto-uploader .secondary:hover {
-  background-color: var(--accent-2);
-}
-
-.foto-uploader .hint {
-  font-size: 0.85em;
-  color: var(--muted);
-  margin: 8px 0;
-  line-height: 1.4em;
-}
-
-.alerta {
-  font-size: 0.9em;
-  margin-top: 6px;
-  color: var(--accent);
-  font-weight: 500;
-}
-
-.preview {
-  display: block;
-  width: 160px;
-  border-radius: 10px;
-  margin-top: 10px;
-  box-shadow: 0 0 6px var(--accent);
-}
-
-.hidden {
-  display: none;
-}
