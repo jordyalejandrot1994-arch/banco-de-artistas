@@ -46,8 +46,24 @@
       <label>Precio 60 min<input name="p60" required></label>
       <label>Precio 120 min<input name="p120" required></label>
       <label>Biografía / Descripción<textarea name="bio"></textarea></label>
-      <label>Foto del artista<input type="file" name="fotoFile" accept="image/*" capture="environment" required></label>
+
+      <!-- 🖼️ NUEVA SECCIÓN POSTIMAGES -->
+      <div class="foto-uploader">
+        <label>Foto del artista</label>
+        <button type="button" class="secondary" onclick="window.open('https://postimages.org/', '_blank')">
+          📸 Subir foto en Postimages
+        </button>
+        <p class="hint">
+          1️⃣ Se abrirá una nueva pestaña.<br>
+          2️⃣ Sube tu foto.<br>
+          3️⃣ Copia el <strong>enlace directo (Direct link)</strong> que termina en <strong>.jpg</strong> o <strong>.png</strong>.<br>
+          4️⃣ Pega ese enlace aquí 👇
+        </p>
+        <input type="url" id="foto" name="foto" placeholder="Pega aquí el enlace directo de tu imagen" required>
+      </div>
+
       <label>Video (YouTube)<input name="video" placeholder="https://youtube.com/..."></label>
+
       <button class="primary" type="submit">Registrar</button>
       <p id="msg-registro" class="msg"></p>
     </form>
@@ -81,6 +97,55 @@
     <div id="admin-content"></div>
     <button id="close-admin">Cerrar</button>
   </div>
+
+  <!-- 📜 VALIDACIÓN OPCIONAL DE ENLACE DE IMAGEN -->
+  <script>
+    document.getElementById("form-registro").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("msg-registro");
+      msg.textContent = "";
+
+      const form = e.target;
+      const fotoURL = form.foto.value.trim();
+
+      // Validar que sea un enlace correcto
+      const esImagen = /\.(jpg|jpeg|png|gif)$/i.test(fotoURL);
+      if (!esImagen) {
+        msg.textContent = "⚠️ El enlace de la foto no parece ser una imagen válida (.jpg o .png).";
+        return;
+      }
+
+      const artista = {
+        nombre_artistico: form.nombre_artistico.value,
+        nombre_real: form.nombre_real.value,
+        cedula: form.cedula.value,
+        ciudad: form.ciudad.value,
+        correo: form.correo.value,
+        celular: form.celular.value,
+        tipo_arte: form.tipo_arte.value,
+        p15: form.p15.value,
+        p30: form.p30.value,
+        p60: form.p60.value,
+        p120: form.p120.value,
+        bio: form.bio.value,
+        foto: form.foto.value,
+        video: form.video.value
+      };
+
+      try {
+        await fetch("https://sheetdb.io/api/v1/jaa331n4u5icl", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: [artista] }),
+        });
+        msg.textContent = "✅ Artista registrado correctamente.";
+        form.reset();
+      } catch (error) {
+        console.error(error);
+        msg.textContent = "❌ Error al registrar al artista.";
+      }
+    });
+  </script>
 
   <script src="app-clean.js"></script>
 </body>
