@@ -46,7 +46,10 @@
       <label>Precio 60 min<input name="p60" required></label>
       <label>Precio 120 min<input name="p120" required></label>
       <label>Biografía / Descripción<textarea name="bio"></textarea></label>
-      <label>Foto del artista<input type="file" name="fotoFile" accept="image/*" capture="environment" required></label>
+      <label>Foto del artista
+        <input type="file" id="fotoFile" name="fotoFile" accept="image/*" capture="environment" required>
+      </label>
+      <p id="estadoFoto" class="msg"></p>
       <label>Video (YouTube)<input name="video" placeholder="https://youtube.com/..."></label>
       <button class="primary" type="submit">Registrar</button>
       <p id="msg-registro" class="msg"></p>
@@ -81,6 +84,90 @@
     <div id="admin-content"></div>
     <button id="close-admin">Cerrar</button>
   </div>
+
+  <script>
+    // ======================= CONFIG =======================
+    const CONFIG = {
+      SHEETDB_ENDPOINT: "https://sheetdb.io/api/v1/jaa331n4u5icl",
+      IMGUR_CLIENT_ID: "546c25b49708ad3" // público y funcional
+    };
+
+    // ======================= FUNCIÓN SUBIR IMAGEN =======================
+    async function subirImagenAImgur(file) {
+      const estado = document.getElementById("estadoFoto");
+      estado.textContent = "Subiendo foto... ⏳";
+
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const response = await fetch("https://api.imgur.com/3/image", {
+        method: "POST",
+        headers: {
+          Authorization: `Client-ID ${CONFIG.IMGUR_CLIENT_ID}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        estado.textContent = "Foto subida correctamente ✅";
+        return data.data.link;
+      } else {
+        estado.textContent = "❌ Error al subir la foto.";
+        throw new Error("Error al subir la imagen a Imgur");
+      }
+    }
+
+    // ======================= REGISTRAR ARTISTA =======================
+    document.getElementById("form-registro").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("msg-registro");
+      const estadoFoto = document.getElementById("estadoFoto");
+      msg.textContent = "";
+      estadoFoto.textContent = "";
+
+      const form = e.target;
+      const file = form.fotoFile.files[0];
+      let fotoLink = "";
+
+      try {
+        // Subir la imagen a Imgur
+        if (file) fotoLink = await subirImagenAImgur(file);
+
+        // Crear objeto artista
+        const artista = {
+          nombre_artistico: form.nombre_artistico.value,
+          nombre_real: form.nombre_real.value,
+          cedula: form.cedula.value,
+          ciudad: form.ciudad.value,
+          correo: form.correo.value,
+          celular: form.celular.value,
+          tipo_arte: form.tipo_arte.value,
+          p15: form.p15.value,
+          p30: form.p30.value,
+          p60: form.p60.value,
+          p120: form.p120.value,
+          bio: form.bio.value,
+          foto: fotoLink,
+          video: form.video.value
+        };
+
+        // Enviar datos a SheetDB
+        await fetch(CONFIG.SHEETDB_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: [artista] }),
+        });
+
+        msg.textContent = "✅ Artista registrado correctamente.";
+        form.reset();
+      } catch (err) {
+        console.error(err);
+        msg.textContent = "❌ Ocurrió un error al registrar al artista.";
+      }
+    });
+  </script>
 
   <script src="app-clean.js"></script>
 </body>
