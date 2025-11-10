@@ -242,7 +242,7 @@ form select:focus {
 }
 
 /* ===========================================
-   PANEL DE ADMINISTRACIÓN
+   PANEL DE ADMINISTRACIÓN (overlay base)
 =========================================== */
 #admin {
   position: fixed;
@@ -262,10 +262,12 @@ form select:focus {
   background: var(--panel);
   padding: 24px;
   border-radius: var(--radius);
-  max-width: 600px;
-  width: 90%;
+  max-width: 900px;
+  width: 92%;
   box-shadow: var(--shadow);
   color: var(--text);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 #close-admin {
@@ -282,6 +284,51 @@ form select:focus {
 #close-admin:hover {
   background: var(--accent-2);
 }
+
+/* ===========================================
+   ADMIN: encabezado, controles y tabla
+=========================================== */
+.admin-header {
+  display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px;
+}
+.admin-header h2 { color: var(--accent); margin:0; }
+
+.admin-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.admin-actions button { background:#111827; color:var(--text); border:1px solid #1f2b46; border-radius:8px; padding:6px 10px; }
+
+.admin-controls {
+  display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; align-items:center;
+}
+.admin-controls input, .admin-controls select {
+  padding:8px; border-radius:8px; background:#0e1625; border:1px solid #1f2b46; color:var(--text);
+}
+
+.tabla-admin { display:flex; flex-direction:column; gap:8px; }
+
+/* Fila */
+.fila-artista {
+  display:flex; gap:12px; align-items:flex-start; background:#0f172a; padding:10px; border-radius:10px; border-left:4px solid transparent; transition:0.18s;
+}
+.fila-artista:hover { transform: translateY(-2px); }
+.fila-artista img { width:72px; height:72px; border-radius:8px; object-fit:cover; border:1px solid #1f2b46; }
+.fila-info { flex:1; min-width:0; }
+.fila-info h4 { margin:0 0 4px 0; color:var(--accent); font-size:1rem; }
+.fila-info .meta { color:var(--muted); font-size:0.9rem; margin-bottom:6px; }
+.fila-info .bio  { color:var(--text); font-size:0.92rem; margin-bottom:6px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+.fila-actions { display:flex; flex-direction:column; gap:6px; align-items:flex-end; min-width:120px; }
+.fila-buttons { display:flex; gap:6px; flex-wrap:wrap; }
+
+.estado-pill { padding:4px 8px; border-radius:999px; font-weight:700; font-size:0.8rem; color:#062a1c; background:#a7f3d0; }
+.estado-pendiente { background:#fde68a !important; color:#92400e !important; }
+.estado-rechazado { background:#fecaca !important; color:#7f1d1d !important; }
+
+.area-edit { margin-top:8px; display:grid; gap:8px; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); }
+.area-edit input, .area-edit textarea {
+  background:#0e1625; border:1px solid #1f2b46; border-radius:8px; color:#e2e8f0; padding:6px; width:100%;
+}
+.edit-actions { display:flex; gap:6px; flex-wrap:wrap; }
+.calc-comm { margin-top:6px; font-size:0.9rem; color:var(--muted); }
 
 /* ===========================================
    TARJETAS DE RESERVAS Y SOLICITUDES
@@ -303,21 +350,29 @@ iframe.video {
 }
 
 /* ===========================================
+   MODAL DE RESERVA (ba-modal)
+=========================================== */
+#ba-modal { /* el JS define posición/inset; aquí mejoramos detalles si hace falta */ }
+#ba-modal .modal-card { /* estilos base se inyectan en JS por compatibilidad */ }
+#ba-modal .modal-head { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px; }
+#ba-modal .modal-head h3 { margin:0; color:var(--accent); }
+#ba-modal .modal-close { background:#111827; border:1px solid #1f2b46; color:var(--text); border-radius:8px; padding:6px 10px; cursor:pointer; }
+#ba-modal .modal-body label { display:block; margin-bottom:8px; font-weight:500; }
+#ba-modal .modal-body input, #ba-modal .modal-body textarea, #ba-modal .modal-body select {
+  background:#0e1625; border:1px solid #1f2b46; color:#e2e8f0; border-radius:8px; padding:8px; width:100%; margin-bottom:12px;
+}
+#ba-modal .modal-total { margin: 6px 0; font-weight:600; color:var(--accent); }
+
+/* ===========================================
    RESPONSIVE
 =========================================== */
 @media (max-width: 700px) {
-  header h1 {
-    font-size: 1.4rem;
-  }
-
-  nav.tabs button {
-    padding: 6px 12px;
-    font-size: 0.85rem;
-  }
-
-  #cards {
-    grid-template-columns: 1fr;
-  }
+  header h1 { font-size: 1.4rem; }
+  nav.tabs button { padding: 6px 12px; font-size: 0.85rem; }
+  #cards { grid-template-columns: 1fr; }
+  .fila-actions { align-items:flex-start; min-width:0; }
+  .fila-artista { flex-direction:column; align-items:flex-start; }
+  .fila-info { width:100%; }
 }
 
 /* ===========================================
@@ -329,30 +384,20 @@ iframe.video {
   transform: translateY(10px);
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
-
 .tab.active {
   display: block;
   opacity: 1;
   transform: translateY(0);
 }
-
 .tab.active form,
 .tab.active #cards,
 .tab.active .filters {
   animation: fadeIn 0.4s ease forwards;
 }
-
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-
 nav.tabs button.active {
   background: var(--accent);
   color: #fff;
@@ -370,7 +415,6 @@ nav.tabs button.active {
   padding: 14px;
   margin: 12px 0 20px;
 }
-
 .foto-uploader .secondary {
   background-color: var(--accent);
   color: white;
@@ -381,33 +425,8 @@ nav.tabs button.active {
   font-weight: 600;
   transition: var(--transition);
 }
-
-.foto-uploader .secondary:hover {
-  background-color: var(--accent-2);
-}
-
-.foto-uploader .hint {
-  font-size: 0.85em;
-  color: var(--muted);
-  margin: 8px 0;
-  line-height: 1.4em;
-}
-
-.alerta {
-  font-size: 0.9em;
-  margin-top: 6px;
-  color: var(--accent);
-  font-weight: 500;
-}
-
-.preview {
-  display: block;
-  width: 160px;
-  border-radius: 10px;
-  margin-top: 10px;
-  box-shadow: 0 0 6px var(--accent);
-}
-
-.hidden {
-  display: none;
-}
+.foto-uploader .secondary:hover { background-color: var(--accent-2); }
+.foto-uploader .hint { font-size: 0.85em; color: var(--muted); margin: 8px 0; line-height: 1.4em; }
+.alerta { font-size: 0.9em; margin-top: 6px; color: var(--accent); font-weight: 500; }
+.preview { display: block; width: 160px; border-radius: 10px; margin-top: 10px; box-shadow: 0 0 6px var(--accent); }
+.hidden { display: none; }
