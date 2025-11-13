@@ -1,38 +1,40 @@
-import nodemailer from 'nodemailer';
+# 🎨 Banco de Artistas
 
-const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SECURE, FROM_EMAIL } = process.env;
+**Banco de Artistas** es una plataforma digital creada para conectar a artistas de distintas ciudades con personas o empresas que buscan talento.  
+Permite **registrar artistas**, **explorar perfiles**, **simular contrataciones** y **administrar reservas** desde un mismo entorno.
 
-const transporter = nodemailer.createTransport({
-  host: SMTP_HOST,
-  port: Number(SMTP_PORT || 587),
-  secure: String(SMTP_SECURE || 'false').toLowerCase() === 'true', // true para 465 (SSL)
-  auth: { user: SMTP_USER, pass: SMTP_PASS },
-});
+---
 
-export const handler = async (event) => {
-  try {
-    if (event.httpMethod !== 'POST') {
-      return { statusCode: 405, body: 'Method Not Allowed' };
-    }
-    const payload = JSON.parse(event.body || '{}');
-    let { to = [], subject = 'Banco de Artistas', html = '' } = payload;
+## 🌍 Enlace oficial
+🔗 [Ir a la aplicación en línea](https://jordyalejandrot1994-arch.github.io/banco-de-artistas/)
 
-    if (!Array.isArray(to)) to = [to].filter(Boolean);
-    to = to.filter(Boolean);
-    if (!to.length) {
-      return { statusCode: 400, body: 'Missing recipients' };
-    }
+---
 
-    const info = await transporter.sendMail({
-      from: FROM_EMAIL,
-      to: to.join(','),
-      subject,
-      html,
-    });
+## 🧠 Funcionalidades principales
+- Registro de artistas con datos, foto, video y descripción.
+- Filtros por ciudad y tipo de arte.
+- Panel de administración oculto, accesible mediante combinación secreta y contraseña `admin2025`.
+- Edición de datos en tiempo real conectada con Google Sheets mediante **SheetDB**.
+- Diseño adaptable (responsive) para celular y escritorio.
+- Simulación de contratación para generar reservas.
 
-    return { statusCode: 200, body: JSON.stringify({ ok: true, id: info.messageId }) };
-  } catch (err) {
-    console.error('SMTP send error:', err);
-    return { statusCode: 500, body: 'Email send error' };
-  }
-};
+---
+
+## 🧰 Tecnologías utilizadas
+- **HTML5**, **CSS3**, **JavaScript (ES6)**
+- **Google Sheets + SheetDB** como base de datos
+- **GitHub Pages** para alojamiento gratuito
+- **TailwindCSS / UI minimalista** para estilos
+
+---
+
+## 👤 Autor
+**Jordy Alejandro Torres Quezada**  
+📞 0999150211  
+📧 jordyalejandrot1994@gmail.com  
+
+---
+
+## 💬 Créditos y licencia
+Este proyecto fue desarrollado con fines educativos y de práctica profesional.  
+El código puede ser reutilizado para fines no comerciales citando al autor.  
