@@ -2,235 +2,135 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0ea5e9" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Banco de Artistas</title>
-  <link rel="stylesheet" href="style-v2.css">
+  <meta name="description" content="Banco de Artistas - conecta talento con oportunidades." />
+
+  <!-- Ícono -->
+  <link rel="icon" href="icon.png" type="image/png" />
+
+  <!-- Hojas de estilo -->
+  <link rel="stylesheet" href="style-v2.css" />
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Manifest para instalación PWA -->
+  <link rel="manifest" href="manifest.json" />
+
+  <!-- Fuente -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 </head>
 
 <body>
-  <header id="header-app">
-    <h1>Banco de Artistas</h1>
+  <header class="app-header">
+    <h1>🎶 Banco de Artistas</h1>
+    <nav>
+      <button class="nav-btn" id="homeBtn">Inicio</button>
+      <button class="nav-btn" id="artistsBtn">Explorar Artistas</button>
+      <button class="nav-btn" id="registerBtn">Registrar Artista</button>
+      <button class="nav-btn" id="reservationsBtn">Mis Reservas</button>
+    </nav>
   </header>
 
-  <!-- NAV -->
-  <nav class="tabs">
-    <button data-tab="explorar" class="active">Explorar</button>
-    <button data-tab="registrar">Registrar Artista</button>
-    <button data-tab="ingresar">Ingresar Artista</button>
-    <button data-tab="reservas">Mis Reservas</button>
-  </nav>
+  <main id="main-content">
+    <section id="inicio" class="active">
+      <h2>Bienvenido/a al Banco de Artistas</h2>
+      <p>Explora talentos, registra tu arte o contrata artistas para tus eventos.</p>
+      <button id="explorarBtn" class="main-btn">Ver Artistas</button>
+    </section>
 
-  <!-- SECCIÓN EXPLORAR -->
-  <div class="tab active" id="tab-explorar">
-    <div class="filters">
-      <input id="q" type="text" placeholder="Buscar por nombre, ciudad o tipo...">
-      <select id="f-ciudad"><option value="">Todas las ciudades</option></select>
-      <select id="f-tipo"><option value="">Todos los tipos</option></select>
-    </div>
-    <section id="cards"></section>
-  </div>
+    <!-- Sección de artistas -->
+    <section id="explorar">
+      <h2>🎤 Artistas Disponibles</h2>
+      <div id="artistsContainer" class="grid-artists"></div>
+    </section>
 
-  <!-- SECCIÓN REGISTRO -->
-  <div class="tab" id="tab-registrar">
-    <form id="form-registro">
-      <label>Nombre artístico<input name="nombre_artistico" required></label>
-      <label>Nombre real<input name="nombre_real" required></label>
-      <label>Cédula<input name="cedula" required></label>
-      <label>Ciudad<input name="ciudad" required></label>
-      <label>Correo<input type="email" name="correo" required></label>
-      <label>Celular<input name="celular" required></label>
-      <label>Tipo de arte<input name="tipo_arte" required></label>
-      <label>Precio 15 min<input name="p15" required></label>
-      <label>Precio 30 min<input name="p30" required></label>
-      <label>Precio 60 min<input name="p60" required></label>
-      <label>Precio 120 min<input name="p120" required></label>
-      <label>Biografía / Descripción<textarea name="bio"></textarea></label>
+    <!-- Sección de registro -->
+    <section id="registro">
+      <h2>📝 Registro de Artista</h2>
+      <form id="artistForm">
+        <input type="text" id="nombre" placeholder="Nombre completo" required />
+        <input type="email" id="correo" placeholder="Correo electrónico" required />
+        <input type="text" id="ciudad" placeholder="Ciudad" required />
+        <input type="text" id="genero" placeholder="Género musical o artístico" required />
+        <textarea id="descripcion" placeholder="Descripción o biografía" required></textarea>
+        <input type="url" id="foto" placeholder="URL de tu foto (usa https://postimages.org)" required />
+        <input type="url" id="video" placeholder="URL de tu video o presentación" />
+        <button type="submit" class="main-btn">Registrar Artista</button>
+      </form>
+      <p id="registroMensaje" class="info-msg"></p>
+    </section>
 
-      <!-- FOTO -->
-      <div class="foto-uploader">
-        <label>Foto del artista</label>
-        <button type="button" class="secondary" onclick="window.open('https://postimages.org/', '_blank')">
-          📸 Subir foto en Postimages
-        </button>
-        <p class="hint">
-          1️⃣ Sube tu foto en Postimages.<br>
-          2️⃣ Copia el <strong>enlace directo</strong> que termina en <strong>.jpg</strong> o <strong>.png</strong>.<br>
-          3️⃣ Pégalo aquí 👇
-        </p>
-        <input type="url" id="foto" name="foto" placeholder="Pega el enlace directo" required>
-        <p id="alerta-foto" class="alerta"></p>
-        <img id="preview-foto" class="preview hidden" alt="Previsualización de la foto">
+    <!-- Sección de reservas -->
+    <section id="reservas">
+      <h2>📅 Mis Reservas</h2>
+      <div id="reservasContainer"></div>
+    </section>
+
+    <!-- Panel de administración (oculto) -->
+    <section id="adminPanel" style="display:none;">
+      <h2>⚙️ Panel de Administración</h2>
+      <div class="admin-controls">
+        <button id="verArtistasBtn" class="admin-btn">Ver todos los artistas</button>
+        <button id="verContratosBtn" class="admin-btn">Ver contratos</button>
+        <button id="volverPrincipalBtn" class="admin-btn">Regresar al inicio</button>
       </div>
+      <div id="adminContent"></div>
+    </section>
+  </main>
 
-      <label>Video (YouTube)<input name="video" placeholder="https://youtube.com/..."></label>
+  <!-- BOTÓN DESCARGAR APP -->
+  <button id="downloadAppBtn">⭐ Descargar App</button>
 
-      <button class="primary" type="submit">Registrar</button>
-      <p id="msg-registro" class="msg"></p>
-    </form>
-  </div>
+  <!-- Pie de página -->
+  <footer>
+    <p>© 2025 Banco de Artistas - Desarrollado por Jordy Alejandro Torres Quezada</p>
+  </footer>
 
-  <!-- SECCIÓN INGRESAR ARTISTA -->
-  <div class="tab" id="tab-ingresar">
-    <form id="form-login-artista">
-      <label>Cédula<input name="cedula" required></label>
-      <label>PIN<input name="pin" required></label>
-      <button class="primary" type="submit">Ingresar</button>
-      <p id="msg-login" class="msg"></p>
-    </form>
-    <div id="panel-artista" class="hidden">
-      <h3>Solicitudes recibidas</h3>
-      <div id="solicitudes-artista"></div>
-    </div>
-  </div>
+  <!-- Script principal -->
+  <script src="app-clean.js"></script>
 
-  <!-- SECCIÓN RESERVAS -->
-  <div class="tab" id="tab-reservas">
-    <form id="form-buscar-reserva">
-      <label>Correo de tu reserva<input name="correo" type="email" required></label>
-      <button class="primary" type="submit">Buscar</button>
-    </form>
-    <div id="reservas-usuario"></div>
-  </div>
-
-  <!-- PANEL DE ADMIN -->
-  <div id="admin" class="hidden">
-    <div class="admin-header">
-      <h2>Panel de Administración</h2>
-      <button id="close-admin" class="secondary">⬅️ Regresar</button>
-    </div>
-    <div id="admin-content"></div>
-  </div>
-
-  <!-- SCRIPTS DE VALIDACIÓN -->
+  <!-- Script del botón de instalación -->
   <script>
-    // =================== VALIDACIÓN Y PREVISUALIZACIÓN DE IMAGEN ===================
-    const inputFoto = document.getElementById("foto");
-    const alertaFoto = document.getElementById("alerta-foto");
-    const preview = document.getElementById("preview-foto");
+    const downloadBtn = document.getElementById('downloadAppBtn');
 
-    inputFoto.addEventListener("input", () => {
-      const url = inputFoto.value.trim();
-      const esValida = /^https:\/\/i\.postimg\.cc\/.*\.(jpg|jpeg|png)$/i.test(url);
-
-      if (esValida) {
-        alertaFoto.textContent = "✅ Enlace válido. Imagen lista para subir.";
-        alertaFoto.style.color = "#10b981";
-        preview.src = url;
-        preview.classList.remove("hidden");
-      } else if (url.length > 0) {
-        alertaFoto.textContent = "⚠️ Enlace no válido. Usa el 'Enlace directo' (.jpg o .png)";
-        alertaFoto.style.color = "#ef4444";
-        preview.classList.add("hidden");
+    function handleScroll() {
+      if (window.scrollY <= 30) {
+        document.body.classList.remove('scrolled');
+        downloadBtn.classList.add('visible');
       } else {
-        alertaFoto.textContent = "";
-        preview.classList.add("hidden");
+        document.body.classList.add('scrolled');
+        downloadBtn.classList.remove('visible');
       }
-    });
+    }
 
-    // =================== REGISTRAR ARTISTA ===================
-    document.getElementById("form-registro").addEventListener("submit", async (e) => {
+    window.addEventListener('scroll', handleScroll);
+    handleScroll();
+
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
-      const msg = document.getElementById("msg-registro");
-      msg.textContent = "";
-      const form = e.target;
-      const fotoURL = form.foto.value.trim();
+      deferredPrompt = e;
+    });
 
-      const esValida = /^https:\/\/i\.postimg\.cc\/.*\.(jpg|jpeg|png)$/i.test(fotoURL);
-      if (!esValida) {
-        msg.textContent = "❌ Enlace de foto no válido.";
-        msg.style.color = "#ef4444";
-        return;
-      }
-
-      const artista = {
-        nombre_artistico: form.nombre_artistico.value,
-        nombre_real: form.nombre_real.value,
-        cedula: form.cedula.value,
-        ciudad: form.ciudad.value,
-        correo: form.correo.value,
-        celular: form.celular.value,
-        tipo_arte: form.tipo_arte.value,
-        p15: form.p15.value,
-        p30: form.p30.value,
-        p60: form.p60.value,
-        p120: form.p120.value,
-        bio: form.bio.value,
-        foto: fotoURL,
-        video: form.video.value,
-      };
-
-      try {
-        await fetch("https://sheetdb.io/api/v1/jaa331n4u5icl", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ data: [artista] }),
-        });
-        msg.textContent = "✅ Registro exitoso. Espera aprobación del administrador.";
-        msg.style.color = "#10b981";
-        form.reset();
-        preview.classList.add("hidden");
-        alertaFoto.textContent = "";
-      } catch (error) {
-        console.error(error);
-        msg.textContent = "❌ Error al registrar.";
-        msg.style.color = "#ef4444";
+    downloadBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log('Instalación:', outcome);
+        deferredPrompt = null;
+      } else {
+        alert("Para instalar la app, usa el menú del navegador y selecciona 'Agregar a pantalla de inicio'.");
       }
     });
-
-    // =================== ADMIN ACTIVACIÓN SECRETA ===================
-    let taps = 0;
-    const header = document.getElementById("header-app");
-    const adminPanel = document.getElementById("admin");
-    const closeAdmin = document.getElementById("close-admin");
-
-    header.addEventListener("click", () => {
-      taps++;
-      if (taps >= 4) abrirAdmin();
-      setTimeout(() => (taps = 0), 2000);
-    });
-
-    document.addEventListener("keydown", (e) => {
-      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "a") abrirAdmin();
-    });
-
-    function abrirAdmin() {
-      adminPanel.classList.remove("hidden");
-      document.querySelectorAll(".tab, nav").forEach(el => el.classList.add("hidden"));
-      cargarAdmin();
-    }
-
-    closeAdmin.addEventListener("click", () => {
-      adminPanel.classList.add("hidden");
-      document.querySelectorAll(".tab, nav").forEach(el => el.classList.remove("hidden"));
-    });
-
-    async function cargarAdmin() {
-      const res = await fetch("https://sheetdb.io/api/v1/jaa331n4u5icl");
-      const data = await res.json();
-      const adminContent = document.getElementById("admin-content");
-
-      const artistas = data.filter(a => a.nombre_artistico);
-      adminContent.innerHTML = `
-        <h3>Artistas registrados (${artistas.length})</h3>
-        <div class="admin-list">
-          ${artistas.map(a => `
-            <div class="admin-item">
-              <img src="${a.foto}" alt="${a.nombre_artistico}">
-              <div>
-                <h4>${a.nombre_artistico}</h4>
-                <p><b>Ciudad:</b> ${a.ciudad}</p>
-                <p><b>Correo:</b> ${a.correo}</p>
-                <p><b>Tipo:</b> ${a.tipo_arte}</p>
-                <p><b>Precios:</b> 15min ${a.p15}, 30min ${a.p30}, 60min ${a.p60}</p>
-              </div>
-            </div>
-          `).join("")}
-        </div>
-      `;
-    }
   </script>
 
-  <script src="app-clean.js"></script>
+  <!-- Registro del service worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(() => console.log('Service Worker registrado correctamente.'))
+        .catch(err => console.error('Error al registrar el Service Worker:', err));
+    }
+  </script>
 </body>
 </html>
